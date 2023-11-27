@@ -3,5 +3,6 @@ Repo for example usage of pCOHP with JDFTx. Please note, this repo will not be m
 
 
 ## Dependencies
-# Numpy
-# ASE
+### Numpy
+### ASE
+### Numba
