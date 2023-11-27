@@ -217,20 +217,23 @@ def get_coords_vars(outfile):
         ionPos = np.dot(ionPos, np.linalg.inv(R.T))  # convert to lattice
     return ionPos, ionNames, R
 
+def get_start_lines(outfname, add_end=False):
+    start_lines = []
+    for i, line in enumerate(open(outfname)):
+        if "JDFTx 1." in line or "Input parsed successfully" in line:
+            start_lines.append(i)
+        end_line = i
+    if add_end:
+        start_lines.append(end_line)
+    return start_lines
+
 def get_start_line(outfile):
     """ Retrieves beginning line number of most recent JDFTx calculation contained in the specified out file.
     :param outfile: Full path of JDFTx out file
     :return: integer line number of start of most recent JDFTx calculation,
     """
-    start = None
-    for i, line in enumerate(open(outfile)):
-        if ('JDFTx' in line) and ('***' in line):
-            start = i
-    if start is None:
-        for i, line in enumerate(open(outfile)):
-            if ("Input parsed successfully" in line):
-                start = i
-    return start
+    start_lines = get_start_lines(outfile, add_end=False)
+    return start_lines[-1]
 
 def get_kfolding(outfile):
     """ Returns kpt foldings
@@ -264,3 +267,31 @@ def parse_kptsfile(kptsfile):
             wk_list.append(wk)
     nStates = len(wk_list)
     return wk_list, k_points_list, nStates
+
+
+def get_input_coord_vars_from_outfile(outfname):
+    start_line = get_start_line(outfname)
+    names = []
+    posns = []
+    R = np.zeros([3,3])
+    lat_row = 0
+    active_lattice = False
+    with open(outfname) as f:
+        for i, line in enumerate(f):
+            if i > start_line:
+                tokens = line.split()
+                if len(tokens) > 0:
+                    if tokens[0] == "ion":
+                        names.append(tokens[1])
+                        posns.append(np.array([float(tokens[2]), float(tokens[3]), float(tokens[4])]))
+                    elif tokens[0] == "lattice":
+                        active_lattice = True
+                    elif active_lattice:
+                        if lat_row < 3:
+                            R[lat_row, :] = [float(x) for x in tokens[:3]]
+                            lat_row += 1
+                        else:
+                            active_lattice = False
+                    elif "Initializing the Grid" in line:
+                        break
+    return names, posns, R
