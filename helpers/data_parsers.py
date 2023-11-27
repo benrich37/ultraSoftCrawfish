@@ -295,3 +295,73 @@ def get_input_coord_vars_from_outfile(outfname):
                     elif "Initializing the Grid" in line:
                         break
     return names, posns, R
+
+
+def get_kmap(atoms):
+    el_counter_dict = {}
+    idx_to_key_map = []
+    els = atoms.get_chemical_symbols()
+    for i, el in enumerate(els):
+        if not el in el_counter_dict:
+            el_counter_dict[el] = 0
+        el_counter_dict[el] += 1
+        idx_to_key_map.append(f"{el} #{el_counter_dict[el]}")
+    return idx_to_key_map
+
+def get_atom_orb_labels_dict(root):
+    """
+    :param root: Path of directory containing JDFTx calculation data
+    :return: Reference dictionary containing string representations of each atomic orbital projection
+                ( NOTE - out of laziness, atoms with multiple shells of a particular angular momentum are indexed
+                  starting at 0, and are not representative of their true principal quantum number)
+    """
+    fname = opj(root, "bandProjections")
+    labels_dict = {}
+    ref_lists = [
+        ["s"],
+        ["px", "py", "pz"],
+        ["dxy", "dxz", "dyz", "dx2y2", "dz2"],
+        ["fx3-3xy2", "fyx2-yz2", "fxz2", "fz3", "fyz2", "fxyz", "f3yx2-y3"]
+    ]
+    with open(fname, "r") as f:
+        for i, line in enumerate(f):
+            if i > 1:
+                if "#" in line:
+                    return labels_dict
+                else:
+                    lsplit = line.strip().split()
+                    sym = lsplit[0]
+                    labels_dict[sym] = []
+                    lmax = int(lsplit[3])
+                    for j in range(lmax+1):
+                        refs = ref_lists[j]
+                        nShells = int(lsplit[4+j])
+                        for k in range(nShells):
+                            if nShells > 1:
+                                for r in refs:
+                                    labels_dict[sym].append(f"{k}{r}")
+                            else:
+                                labels_dict[sym] += refs
+
+
+def get_el_orb_u_dict(path, atoms, orbs_dict, aidcs):
+    """
+    :param path: Path of directory containing JDFTx calculation data
+    :param atoms: Atoms object of calculated system
+    :param orbs_dict: Reference orbs dict
+    :param aidcs: Indices for atoms of interest
+    :return: Dictionary mapping atom symbol and atomic orbital string to all relevant projection indices
+    """
+    els = [atoms.get_chemical_symbols()[i] for i in aidcs]
+    kmap = get_kmap(atoms)
+    labels_dict = get_atom_orb_labels_dict(path)
+    el_orbs_dict = {}
+    for i, el in enumerate(els):
+        if not el in el_orbs_dict:
+            el_orbs_dict[el] = {}
+        for ui, u in enumerate(orbs_dict[kmap[aidcs[i]]]):
+            orb = labels_dict[el][ui]
+            if not orb in el_orbs_dict[el]:
+                el_orbs_dict[el][orb] = []
+            el_orbs_dict[el][orb].append(u)
+    return el_orbs_dict
