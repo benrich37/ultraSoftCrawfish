@@ -200,8 +200,8 @@ def get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig):
     wdn = weights_sabcj[1].flatten()
     eup = E_sabcj[0].flatten()
     edn = E_sabcj[1].flatten()
-    cup = np.zeros(np.shape(Erange))
-    cdn = np.zeros(np.shape(Erange))
+    cup = np.zeros(np.shape(Erange), dtype=float)
+    cdn = np.zeros(np.shape(Erange), dtype=float)
     cup = get_cheap_pcohp_jit(Erange, eup, wup, cup, sig)
     cdn = get_cheap_pcohp_jit(Erange, edn, wdn, cdn, sig)
     return cup, cdn
@@ -213,7 +213,7 @@ def get_cheap_pcohp_jit(Erange, eflat, wflat, cflat, sig):
         cflat += gauss(Erange, eflat[i], sig)*wflat[i]
     return cflat
 
-
+@jit(nopython=True)
 def gauss(x, mu, sig):
     return np.exp(-((x - mu) ** 2) / sig)
 

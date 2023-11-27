@@ -3,7 +3,7 @@ from ase.io import read, write
 from ase import Atoms, Atom
 from ase.units import Bohr
 import numpy as np
-from data_parsers import get_start_lines, get_input_coord_vars_from_outfile
+from helpers.data_parsers import get_start_lines, get_input_coord_vars_from_outfile
 
 
 def get_atoms(path):
