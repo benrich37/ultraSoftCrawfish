@@ -55,7 +55,7 @@ def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="
         fillings = np.fromfile(fillingsfile)
         occ_sabcj = fillings.reshape(Eshape)
     else:
-        occ_sabcj = np.ones(Eshape)
+        occ_sabcj = np.ones(Eshape)*np.nan
     proj_shape = Eshape
     proj_shape.append(nProj)
     proj_flat = proj_kju.flatten()
