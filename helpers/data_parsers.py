@@ -36,19 +36,9 @@ def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="
     proj_kju, nStates, nBands, nProj, nSpecies, nOrbsPerAtom = parse_complex_bandfile(bandfile)
     orbs_dict = orbs_idx_dict(outfile, nOrbsPerAtom)
     kfolding = get_kfolding(outfile)
-    nK = int(np.prod(kfolding))
-    nSpin = int(nStates / nK) #TODO: JDFTx may reduce nK, making this line get the wrong value. Just get nSpin from the spin-type in the out file
-    if ope(kPtsfile):
-        wk, ks, nStates = parse_kptsfile(kPtsfile)
-        wk = np.array(wk)
-        ks = np.array(ks)
-    else:
-        ks = np.zeros([nK*nSpin, 3])
-        wk = np.ones(nK*nSpin)
-        wk *= (1/nK)
-    wk_sabc = wk.reshape([nSpin, kfolding[0], kfolding[1], kfolding[2]])
-    ks_sabc = ks.reshape([nSpin, kfolding[0], kfolding[1], kfolding[2], 3])
     E = np.fromfile(eigfile)
+    nSpin = get_nSpin(outfile)
+    wk_sabc, ks_sabc, kfolding = get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates)
     Eshape = [nSpin, kfolding[0], kfolding[1], kfolding[2], nBands]
     E_sabcj = E.reshape(Eshape)
     if ope(fillingsfile):
@@ -62,6 +52,84 @@ def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="
     proj_sabcju = proj_flat.reshape(proj_shape)
     mu = get_mu(outfile)
     return proj_sabcju, E_sabcj, occ_sabcj, wk_sabc, ks_sabc, orbs_dict, mu
+
+
+def get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates):
+    _nK = int(np.prod(kfolding))
+    nK = int(np.prod(kfolding))
+    if nSpin != int(nStates / _nK):
+        print("WARNING: Internal inconsistency found (nSpin * nK-pts != nStates).")
+        print("No safety net for this which allows for tetrahedral integration currently implemented.")
+        print("k-folding will be changed to arbitrary length 3 array to satisfy shaping criteria.")
+        nK = int(nStates / nSpin)
+    if ope(kPtsfile):
+        wk, ks, nStates = parse_kptsfile(kPtsfile)
+        wk = np.array(wk)
+        ks = np.array(ks)
+        if (nK != _nK):
+            if len(ks) == nK: # length of kpt data matches interpolated nK value
+                kfolding = get_kfolding_from_kpts(kPtsfile, nK)
+            else:
+                kfolding = get_arbitrary_kfolding(nK)
+                ks = np.ones([nK * nSpin, 3]) * np.nan
+                wk = np.ones(nK * nSpin)
+                wk *= (1 / nK)
+
+    else:
+        if nK != _nK:
+            kfolding = get_arbitrary_kfolding(nK)
+        ks = np.ones([nK * nSpin, 3]) * np.nan
+        wk = np.ones(nK * nSpin)
+        wk *= (1 / nK)
+    wk_sabc = wk.reshape([nSpin, kfolding[0], kfolding[1], kfolding[2]])
+    ks_sabc = ks.reshape([nSpin, kfolding[0], kfolding[1], kfolding[2], 3])
+    return wk_sabc, ks_sabc, kfolding
+
+
+def get_kfolding_from_kpts_reader(kPtsfile):
+    return None
+
+def get_arbitrary_kfolding(nK):
+    # print(f"nK: {nK}")
+    # kfolding = [int(np.floor(nK**(1/3)))]
+    # print(f"kfolding: {kfolding}")
+    # kfolding.append(int(np.floor((nK/kfolding[-1])**(1/2))))
+    # print(f"kfolding: {kfolding}")
+    # kfolding.append(int(nK/np.product(kfolding)))
+    # print(f"kfolding: {kfolding}")
+    kfolding = [1, 1, nK]
+    assert np.prod(kfolding) == nK
+    return kfolding
+
+def get_kfolding_from_kpts(kPtsfile, nK):
+    kfolding = get_kfolding_from_kpts_reader(kPtsfile)
+    if kfolding is None:
+        kfolding = get_arbitrary_kfolding(nK)
+    return kfolding
+
+
+
+
+
+spintype_nSpin = {
+    "no-spin": 1,
+    "spin-orbit": 2,
+    "vector-spin": 2,
+    "z-spin": 2
+}
+def get_nSpin(outfile):
+    start = get_start_line(outfile)
+    key = "spintype"
+    with open(outfile, "r") as f:
+        for i, line in enumerate(f):
+            if i > start:
+                if key in line:
+                    tokens = line.strip().split()
+                    val = tokens[1]
+                    if val in spintype_nSpin:
+                        return spintype_nSpin[val]
+
+
 
 
 def is_complex_bandfile(bandfile):
