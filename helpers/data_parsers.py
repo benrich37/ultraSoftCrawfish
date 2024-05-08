@@ -51,7 +51,16 @@ def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="
     proj_flat = proj_kju.flatten()
     proj_sabcju = proj_flat.reshape(proj_shape)
     mu = get_mu(outfile)
-    return proj_sabcju, E_sabcj, occ_sabcj, wk_sabc, ks_sabc, orbs_dict, mu
+    data = {
+        proj_sabcju.__name__: proj_sabcju,
+        E_sabcj.__name__:E_sabcj,
+        occ_sabcj.__name__:occ_sabcj,
+        wk_sabc.__name__:wk_sabc,
+        ks_sabc.__name__:ks_sabc,
+        orbs_dict.__name__:orbs_dict,
+        mu.__name__: mu
+    }
+    return data
 
 
 def get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates):
