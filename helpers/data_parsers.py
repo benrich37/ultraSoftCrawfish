@@ -37,7 +37,7 @@ def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="
     orbs_dict = orbs_idx_dict(outfile, nOrbsPerAtom)
     kfolding = get_kfolding(outfile)
     nK = int(np.prod(kfolding))
-    nSpin = int(nStates / nK)
+    nSpin = int(nStates / nK) #TODO: JDFTx may reduce nK, making this line get the wrong value. Just get nSpin from the spin-type in the out file
     if ope(kPtsfile):
         wk, ks, nStates = parse_kptsfile(kPtsfile)
         wk = np.array(wk)
