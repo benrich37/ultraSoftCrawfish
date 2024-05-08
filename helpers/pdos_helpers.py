@@ -21,7 +21,7 @@ def get_pdos_weights_sabcj(idcs, path, data, orb_bool_func):
             orbs += orbs_dict[kmap[idx]]
     weights_sabcj = np.zeros(np.shape(E_sabcj))
     for orb in orbs:
-        weights_sabcj += np.abs(proj_sabcju[:,:,:,:,:,orb])
+        weights_sabcj += np.abs(proj_sabcju[:,:,:,:,:,orb])**2
     return weights_sabcj
 
 

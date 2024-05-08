@@ -205,7 +205,7 @@ def get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig):
         ws.append(weights_sabcj[s].flatten())
         es.append(E_sabcj[s].flatten())
         cs.append(np.zeros(np.shape(Erange), dtype=float))
-        cs[s] = get_cheap_pcohp_jit(Erange, es[s], es[s], cs[s], sig)
+        cs[s] = get_cheap_pcohp_jit(Erange, es[s], ws[s], cs[s], sig)
     return cs
 
 

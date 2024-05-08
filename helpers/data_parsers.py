@@ -90,13 +90,6 @@ def get_kfolding_from_kpts_reader(kPtsfile):
     return None
 
 def get_arbitrary_kfolding(nK):
-    # print(f"nK: {nK}")
-    # kfolding = [int(np.floor(nK**(1/3)))]
-    # print(f"kfolding: {kfolding}")
-    # kfolding.append(int(np.floor((nK/kfolding[-1])**(1/2))))
-    # print(f"kfolding: {kfolding}")
-    # kfolding.append(int(nK/np.product(kfolding)))
-    # print(f"kfolding: {kfolding}")
     kfolding = [1, 1, nK]
     assert np.prod(kfolding) == nK
     return kfolding
