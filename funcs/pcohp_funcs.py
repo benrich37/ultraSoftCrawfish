@@ -39,6 +39,12 @@ def get_cheap_pcohp(idcs1, idcs2, path, data=None, res=0.01, sig=0.00001, orbs1=
             else:
                 np.ndarray[float] of shape (,N)
     """
+    if data is None:
+        data = parse_data(root=path)
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
+                         "to your JDFTx in file.")
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, res=res,
                                                                             orbs1=orbs1, orbs2=orbs2, Erange=Erange)
     cs = get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig)
@@ -75,6 +81,15 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
             else:
                 np.ndarray[float] of shape (,N)
     """
+    if data is None:
+        data = parse_data(root=path)
+    if not data.expected_kpts:
+        raise ValueError("Inconsistency encountered in number of expected kpts, spins, and found states. " + \
+                         "Due to uncertainty of kfolding, linear tetrahedral integration cannot be used.")
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
+                         "to your JDFTx in file.")
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, res=res,
                                                                             orbs1=orbs1, orbs2=orbs2, Erange=Erange)
     cs = []
@@ -105,6 +120,10 @@ def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
     """
     if data is None:
         data = parse_data(root=path)
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
+                         "to your JDFTx in file.")
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
     ipcohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk)
     return ipcohp

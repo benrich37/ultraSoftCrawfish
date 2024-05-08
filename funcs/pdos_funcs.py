@@ -3,6 +3,7 @@ sys.path.append("..")
 import numpy as np
 
 from helpers.pdos_helpers import get_pdos_pieces
+from helpers.data_parsers import parse_data
 from helpers.pcohp_helpers import get_cheap_pcohp_helper
 from helpers.misc_helpers import cs_formatter
 from helpers.ase_helpers import get_atoms
@@ -71,6 +72,11 @@ def get_tetr_pdos(idcs, path, data=None, res=0.01, orbs=None, Erange=None, spin_
             else:
                 np.ndarray[float] of shape (,N)
     """
+    if data is None:
+        data = parse_data(root=path)
+    if not data.expected_kpts:
+        raise ValueError("Inconsistency encountered in number of expected kpts, spins, and found states. " + \
+                         "Due to uncertainty of kfolding, linear tetrahedral integration cannot be used.")
     Erange, weights_sabcj, E_sabcj = get_pdos_pieces(idcs, path, data, res, orbs, Erange)
     atoms = get_atoms(path)
     cs = []
