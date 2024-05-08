@@ -28,7 +28,7 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
     return Erange, tetr_pcohp
 
 
-def get_icohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
+def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
     if data is None:
         data = parse_data(root=path)
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
