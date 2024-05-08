@@ -9,14 +9,72 @@ from ase.dft.dos import linear_tetrahedron_integration as lti
 
 
 def get_cheap_pcohp(idcs1, idcs2, path, data=None, res=0.01, sig=0.00001, orbs1=None, orbs2=None, Erange=None, spin_pol = False):
+    """
+    :param idcs1: list[int]
+        List of atom indices to belong to first group of the pCOHP pair (0-based indices)
+    :param idcs2: list[int]
+        List of atom indices to belong to second group of the pCOHP pair (0-based indices)
+    :param path: str or path
+        Full path for directory containing output files from calculation
+    :param data: tuple
+        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param res: float
+        dE for evenly spaced energy array (in Hartree)
+    :param sig: float
+        Controls smearing amplitude of gaussian smearings
+    :param orbs1/2: list[str]
+        List orbitals to include in pCOHP evaluation (includes all if None)
+            - ie orbs = ["s"] would include only s orbitals,
+                orbs = ["d"] would include only d orbitals,
+                orbs = ["px"] would include only px orbitals
+    :param Erange: np.ndarray[float] of shape (,N)
+        Array of energy values to evaluate pDOS for (Hartree)
+    :param spin_pol: bool
+        If true, pCOHP return array returned as (2,N) array, where first index belongs to spin
+    :return Erange, pcohp:
+        :Erange: np.ndarray[float] of shape (,N)
+        :pcohp:
+            if spin_pol:
+                np.ndarray[float] of shape (2,N)
+            else:
+                np.ndarray[float] of shape (,N)
+    """
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, res=res,
                                                                             orbs1=orbs1, orbs2=orbs2, Erange=Erange)
     cs = get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig)
-    cs = cs_formatter(cs, spin_pol)
-    return Erange, cs
+    pcohp = cs_formatter(cs, spin_pol)
+    return Erange, pcohp
 
 
 def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=None, Erange=None, spin_pol=False):
+    """
+    :param idcs1: list[int]
+        List of atom indices to belong to first group of the pCOHP pair (0-based indices)
+    :param idcs2: list[int]
+        List of atom indices to belong to second group of the pCOHP pair (0-based indices)
+    :param path: str or path
+        Full path for directory containing output files from calculation
+    :param data: tuple
+        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param res: float
+        dE for evenly spaced energy array (in Hartree)
+    :param orbs1/2: list[str]
+        List orbitals to include in pCOHP evaluation (includes all if None)
+            - ie orbs = ["s"] would include only s orbitals,
+                orbs = ["d"] would include only d orbitals,
+                orbs = ["px"] would include only px orbitals
+    :param Erange: np.ndarray[float] of shape (,N)
+        Array of energy values to evaluate pDOS for (Hartree)
+    :param spin_pol: bool
+        If true, pCOHP return array returned as (2,N) array, where first index belongs to spin
+    :return Erange, pcohp:
+        :Erange: np.ndarray[float] of shape (,N)
+        :pcohp:
+            if spin_pol:
+                np.ndarray[float] of shape (2,N)
+            else:
+                np.ndarray[float] of shape (,N)
+    """
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, res=res,
                                                                             orbs1=orbs1, orbs2=orbs2, Erange=Erange)
     cs = []
@@ -28,10 +86,27 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
 
 
 def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
+    """
+    :param idcs1: list[int]
+        List of atom indices to belong to first group of the pCOHP pair (0-based indices)
+    :param idcs2: list[int]
+        List of atom indices to belong to second group of the pCOHP pair (0-based indices)
+    :param path: str or path
+        Full path for directory containing output files from calculation
+    :param data: tuple
+        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param orbs1/2: list[str]
+        List orbitals to include in pCOHP evaluation (includes all if None)
+            - ie orbs = ["s"] would include only s orbitals,
+                orbs = ["d"] would include only d orbitals,
+                orbs = ["px"] would include only px orbitals
+    :return ipcohp: float
+        Integrated pCOHP up to fermi level
+    """
     if data is None:
         data = parse_data(root=path)
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
-    icohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk)
-    return icohp
+    ipcohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk)
+    return ipcohp
 
 
