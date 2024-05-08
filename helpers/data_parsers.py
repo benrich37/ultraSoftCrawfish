@@ -51,8 +51,11 @@ def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="
     E = np.fromfile(eigfile)
     Eshape = [nSpin, kfolding[0], kfolding[1], kfolding[2], nBands]
     E_sabcj = E.reshape(Eshape)
-    fillings = np.fromfile(fillingsfile)
-    occ_sabcj = fillings.reshape(Eshape)
+    if ope(fillingsfile):
+        fillings = np.fromfile(fillingsfile)
+        occ_sabcj = fillings.reshape(Eshape)
+    else:
+        occ_sabcj = np.ones(Eshape)
     proj_shape = Eshape
     proj_shape.append(nProj)
     proj_flat = proj_kju.flatten()
