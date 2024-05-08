@@ -6,6 +6,7 @@ import warnings
 
 from helpers.ase_helpers import get_atoms
 from helpers.data_parsers import get_kmap, get_el_orb_u_dict, parse_data
+from helpers.misc_helpers import gauss
 
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
@@ -211,12 +212,8 @@ def get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig):
 @jit(nopython=True)
 def get_cheap_pcohp_jit(Erange, eflat, wflat, cflat, sig):
     for i in range(len(eflat)):
-        cflat += gauss(Erange, eflat[i], sig)*wflat[i]
+        cflat += gauss(Erange, eflat[i], sig) * wflat[i]
     return cflat
-
-@jit(nopython=True)
-def gauss(x, mu, sig):
-    return np.exp(-((x - mu) ** 2) / sig)
 
 
 def get_pcohp_pieces(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=None, Erange=None):
