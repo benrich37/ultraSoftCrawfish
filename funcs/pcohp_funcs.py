@@ -2,7 +2,7 @@ import sys
 sys.path.append("..")
 
 from helpers.data_parsers import parse_data
-from helpers.pcohp_helpers import get_just_icohp_helper, get_cheap_pcohp_helper, get_pcohp_pieces
+from helpers.pcohp_helpers import get_just_ipcohp_helper, get_cheap_pcohp_helper, get_pcohp_pieces
 import numpy as np
 from ase.dft.dos import linear_tetrahedron_integration as lti
 
@@ -32,7 +32,7 @@ def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
     if data is None:
         data = parse_data(root=path)
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
-    icohp = get_just_icohp_helper(occ_sabcj, weights_sabcj, wk)
+    icohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk)
     return icohp
 
 

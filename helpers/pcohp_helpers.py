@@ -148,7 +148,7 @@ def get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orbs_u, orbs_v, wk_sabc=None):
     return get_pCOHP_sabcj_jit(nSpin, nKa, nKb, nKc, nBands, orbs_u, orbs_v, P_uvjsabc, H_uvsabc, wk_sabc, pCOHP_sabcj)
 
 
-def get_just_icohp_helper(occ_sabcj, weights_sabcj, wk):
+def get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk):
     shape = np.shape(occ_sabcj)
     nSpin = shape[0]
     nKa = shape[1]
@@ -156,12 +156,12 @@ def get_just_icohp_helper(occ_sabcj, weights_sabcj, wk):
     nKc = shape[3]
     nBands = shape[4]
     icohp = 0
-    icohp = get_just_icohp_helper_jit(occ_sabcj, weights_sabcj, wk, nSpin, nKa, nKb, nKc, nBands, icohp)
+    icohp = get_just_ipcohp_helper_jit(occ_sabcj, weights_sabcj, wk, nSpin, nKa, nKb, nKc, nBands, icohp)
     return icohp
 
 
 @jit(nopython=True)
-def get_just_icohp_helper_jit(occ_sabcj, weights_sabcj, wk_sabc, nSpin, nKa, nKb, nKc, nBands, icohp):
+def get_just_ipcohp_helper_jit(occ_sabcj, weights_sabcj, wk_sabc, nSpin, nKa, nKb, nKc, nBands, icohp):
     for s in range(nSpin):
         for a in range(nKa):
             for b in range(nKb):
