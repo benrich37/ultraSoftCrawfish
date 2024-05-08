@@ -2,64 +2,58 @@ import numpy as np
 from os.path import join as opj, exists as ope
 
 
+class ElecData:
+
+    def __init__(self, root=None, bandfile="bandProjections", kPtsfile="kPts",
+                 eigfile="eigenvals", fillingsfile="fillings", outfile="out"):
+        if not root is None:
+            self.bandfile = opj(root, bandfile)
+            self.kPtsfile = opj(root, kPtsfile)
+            self.eigfile = opj(root, eigfile)
+            self.fillingsfile = opj(root, fillingsfile)
+            self.outfile = opj(root, outfile)
+        proj_kju, nStates, nBands, nProj, nSpecies, nOrbsPerAtom = parse_complex_bandfile(bandfile)
+        self.complex_bandprojs = is_complex_bandfile(bandfile)
+        orbs_dict = orbs_idx_dict(outfile, nOrbsPerAtom)
+        kfolding = get_kfolding(outfile)
+        E = np.fromfile(eigfile)
+        nSpin = get_nSpin(outfile)
+        self.expected_kpts = (nSpin == nStates / np.prod(kfolding))
+        wk_sabc, ks_sabc, kfolding = get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates)
+        Eshape = [nSpin, kfolding[0], kfolding[1], kfolding[2], nBands]
+        E_sabcj = E.reshape(Eshape)
+        if ope(fillingsfile):
+            fillings = np.fromfile(fillingsfile)
+            occ_sabcj = fillings.reshape(Eshape)
+        else:
+            occ_sabcj = np.ones(Eshape) * np.nan
+        proj_shape = Eshape
+        proj_shape.append(nProj)
+        proj_flat = proj_kju.flatten()
+        proj_sabcju = proj_flat.reshape(proj_shape)
+        mu = get_mu(outfile)
+        self.proj_sabcju = proj_sabcju
+        self.E_sabcj = E_sabcj
+        self.occ_sabcj = occ_sabcj
+        self.wk_sabc = wk_sabc
+        self.ks_sabc = ks_sabc
+        self.orbs_dict = orbs_dict
+        self.mu = mu
+
+
+
 def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="eigenvals", fillingsfile="fillings",
                outfile="out"):
     """
-    :param bandfile: Path to BandProjections file (str)
-    :param kPtsfile: Path to kPts file (str)
-    :param eigfile: Path to eigenvalues file (str)
-    :param fillingsfile: Path to fillings files (str)
-    :param outfile: Path to out file (str)
+    :param bandfile: Name of BandProjections file in root (str)
+    :param kPtsfile: Name of kPts file in root (str)
+    :param eigfile: Name of eigenvalues file in root (str)
+    :param fillingsfile: Name of fillings files in root (str)
+    :param outfile: Name of out file in root (str)
     :return:
-        - proj_sabcju: a numpy array containing the complex band projection, data (<φ_μ|ψ_j> = T_μj) shaped to
-                       (nSpin, nKa, nKb, nKc, nBand, nProj) where
-                - nSpin (s) = alpha/beta
-                - nKa/b/c (a/b/c) = index along kpt folding for 1st, 2nd, and 3rd reciprocal lattice vector, respectively
-                - nBand (j) = index of band
-                - nProj (u) = index of projected atomic orbital
-        - E_sabcj: Numpy array of kohn-sham eigenvalues (float)
-        - occ_sabcj: Numpy array of electronic fillings for respective state/band (float)
-        - wk_sabc: Numpy array of kpt weights (float)
-        - ks_sabc: Numpy array of each kpt in reciprocal space (float)
-        - orbs_dict: Reference dictionary mapping each atom (using key of format 'el #n' (str), where el is atom id, and n is
-                     number of specific atom as it appears in JDFTx out file using 1-based indexing) to indices (int) of all
-                     atomic orbital projections (in 0-based indexing) belonging to said atom.
-        - mu: Fermi level in Hartree (float)
-    :rtype: tuple
+        data: ElecData
     """
-    if not root is None:
-        bandfile = opj(root, bandfile)
-        kPtsfile = opj(root, kPtsfile)
-        eigfile = opj(root, eigfile)
-        fillingsfile = opj(root, fillingsfile)
-        outfile = opj(root, outfile)
-    proj_kju, nStates, nBands, nProj, nSpecies, nOrbsPerAtom = parse_complex_bandfile(bandfile)
-    orbs_dict = orbs_idx_dict(outfile, nOrbsPerAtom)
-    kfolding = get_kfolding(outfile)
-    E = np.fromfile(eigfile)
-    nSpin = get_nSpin(outfile)
-    wk_sabc, ks_sabc, kfolding = get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates)
-    Eshape = [nSpin, kfolding[0], kfolding[1], kfolding[2], nBands]
-    E_sabcj = E.reshape(Eshape)
-    if ope(fillingsfile):
-        fillings = np.fromfile(fillingsfile)
-        occ_sabcj = fillings.reshape(Eshape)
-    else:
-        occ_sabcj = np.ones(Eshape)*np.nan
-    proj_shape = Eshape
-    proj_shape.append(nProj)
-    proj_flat = proj_kju.flatten()
-    proj_sabcju = proj_flat.reshape(proj_shape)
-    mu = get_mu(outfile)
-    data = {
-        proj_sabcju.__name__: proj_sabcju,
-        E_sabcj.__name__:E_sabcj,
-        occ_sabcj.__name__:occ_sabcj,
-        wk_sabc.__name__:wk_sabc,
-        ks_sabc.__name__:ks_sabc,
-        orbs_dict.__name__:orbs_dict,
-        mu.__name__: mu
-    }
+    data = ElecData(root=root, bandfile=bandfile, kPtsfile=kPtsfile, eigfile=eigfile, fillingsfile=fillingsfile, outfile=outfile)
     return data
 
 

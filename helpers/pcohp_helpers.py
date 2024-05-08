@@ -219,17 +219,16 @@ def get_cheap_pcohp_jit(Erange, eflat, wflat, cflat, sig):
 def get_pcohp_pieces(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=None, Erange=None):
     if data is None:
         data = parse_data(root=path)
-    proj_sabcju, E_sabcj, occ_sabcj, wk, ks, orbs_dict, mu = data
     atoms = get_atoms(path)
     kmap = get_kmap(atoms)
     if Erange is None:
-        Erange = np.arange(np.min(E_sabcj)-(10*res), np.max(E_sabcj)+(10*res), res)
+        Erange = np.arange(np.min(data.E_sabcj)-(10*res), np.max(data.E_sabcj)+(10*res), res)
     orb_idcs = [[],[]]
     orbs_pulls = [orbs1, orbs2]
     for i, set in enumerate([idcs1, idcs2]):
         orbs_pull = orbs_pulls[i]
         if not orbs_pull is None:
-            el_orb_u_dict = get_el_orb_u_dict(path, atoms, orbs_dict, set)
+            el_orb_u_dict = get_el_orb_u_dict(path, atoms, data.orbs_dict, set)
             for el in el_orb_u_dict:
                 for orb in el_orb_u_dict[el]:
                     if type(orbs_pull) is list:
@@ -242,8 +241,8 @@ def get_pcohp_pieces(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=
                             orb_idcs[i] += el_orb_u_dict[el][orb]
         else:
             for idx in set:
-                orb_idcs[i] += orbs_dict[kmap[idx]]
-    P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
-    H_uvsabc = get_H_uvsabc_bare_min(P_uvjsabc, E_sabcj, orb_idcs[0], orb_idcs[1])
+                orb_idcs[i] += data.orbs_dict[kmap[idx]]
+    P_uvjsabc = get_P_uvjsabc_bare_min(data.proj_sabcju, orb_idcs[0], orb_idcs[1])
+    H_uvsabc = get_H_uvsabc_bare_min(P_uvjsabc, data.E_sabcj, orb_idcs[0], orb_idcs[1])
     weights_sabcj = get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orb_idcs[0], orb_idcs[1])
-    return Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj
+    return Erange, weights_sabcj, data.E_sabcj, atoms, data.wk, data.occ_sabcj
