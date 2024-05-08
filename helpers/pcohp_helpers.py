@@ -196,15 +196,16 @@ def get_orb_idcs(idcs1, idcs2, path, orbs_dict, atoms, orbs1=None, orbs2=None):
 
 
 def get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig):
-    wup = weights_sabcj[0].flatten()
-    wdn = weights_sabcj[1].flatten()
-    eup = E_sabcj[0].flatten()
-    edn = E_sabcj[1].flatten()
-    cup = np.zeros(np.shape(Erange), dtype=float)
-    cdn = np.zeros(np.shape(Erange), dtype=float)
-    cup = get_cheap_pcohp_jit(Erange, eup, wup, cup, sig)
-    cdn = get_cheap_pcohp_jit(Erange, edn, wdn, cdn, sig)
-    return cup, cdn
+    nSpin = np.shape(E_sabcj)[0]
+    ws = []
+    es = []
+    cs = []
+    for s in range(nSpin):
+        ws.append(weights_sabcj[s].flatten())
+        es.append(E_sabcj[s].flatten())
+        cs.append(np.zeros(np.shape(Erange), dtype=float))
+        cs[s] = get_cheap_pcohp_jit(Erange, es[s], es[s], cs[s], sig)
+    return cs
 
 
 @jit(nopython=True)
