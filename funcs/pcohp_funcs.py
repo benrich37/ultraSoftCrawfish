@@ -16,8 +16,8 @@ def get_cheap_pcohp(idcs1, idcs2, path, data=None, res=0.01, sig=0.00001, orbs1=
         List of atom indices to belong to second group of the pCOHP pair (0-based indices)
     :param path: str or path
         Full path for directory containing output files from calculation
-    :param data: tuple
-        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param data: ElecData
+        ElecData class object for calculation
     :param res: float
         dE for evenly spaced energy array (in Hartree)
     :param sig: float
@@ -60,8 +60,8 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
         List of atom indices to belong to second group of the pCOHP pair (0-based indices)
     :param path: str or path
         Full path for directory containing output files from calculation
-    :param data: tuple
-        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param data: ElecData
+        ElecData class object for calculation
     :param res: float
         dE for evenly spaced energy array (in Hartree)
     :param orbs1/2: list[str]
@@ -108,8 +108,8 @@ def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
         List of atom indices to belong to second group of the pCOHP pair (0-based indices)
     :param path: str or path
         Full path for directory containing output files from calculation
-    :param data: tuple
-        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param data: ElecData
+        ElecData class object for calculation
     :param orbs1/2: list[str]
         List orbitals to include in pCOHP evaluation (includes all if None)
             - ie orbs = ["s"] would include only s orbitals,

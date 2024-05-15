@@ -16,8 +16,8 @@ def get_cheap_pdos(idcs, path, data=None, res=0.01, sig=0.00001, orbs=None, Eran
         List of atom indices to plot pDOS of (0-based indices)
     :param path: str or path
         Full path for directory containing output files from calculation
-    :param data: tuple
-        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param data: ElecData
+        ElecData class object for calculation
     :param res: float
         dE for evenly spaced energy array (in Hartree)
     :param sig: float
@@ -51,8 +51,8 @@ def get_tetr_pdos(idcs, path, data=None, res=0.01, orbs=None, Erange=None, spin_
         List of atom indices to plot pDOS of (0-based indices)
     :param path: str or path
         Full path for directory containing output files from calculation
-    :param data: tuple
-        Output dictionary from 'parse_data' function found in helpers.data_parsers
+    :param data: ElecData
+        ElecData class object for calculation
     :param res: float
         dE for evenly spaced energy array (in Hartree)
     :param orbs: list[str]
@@ -62,7 +62,7 @@ def get_tetr_pdos(idcs, path, data=None, res=0.01, orbs=None, Erange=None, spin_
                 orbs = ["px"] would include only px orbitals
     :param Erange: np.ndarray[float] of shape (,N)
         Array of energy values to evaluate pDOS for (Hartree)
-    :param spin_pol: bool
+    :param sp
         If true, pDOS return array returned as (2,N) array, where first index belongs to spin
     :return Erange, pdos:
         :Erange: np.ndarray[float] of shape (,N)
