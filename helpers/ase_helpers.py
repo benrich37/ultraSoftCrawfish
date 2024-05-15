@@ -3,16 +3,10 @@ from ase.io import read, write
 from ase import Atoms, Atom
 from ase.units import Bohr
 import numpy as np
-from helpers.data_parsers import get_start_lines, get_input_coord_vars_from_outfile
-
+from helpers.data_parsing_helpers import get_start_lines, get_input_coord_vars_from_outfile
 
 def get_atoms(path):
-    if ope(opj(path, "CONTCAR.gjf")):
-        atoms = read(opj(path, "CONTCAR.gjf"), format="gaussian-in")
-    elif ope(opj(path, "CONTCAR")):
-        atoms = read(opj(path, "CONTCAR"), format="vasp")
-    else:
-        atoms = get_atoms_from_out(opj(path, "out"))
+    atoms = get_atoms_from_out(opj(path, "out"))
     return atoms
 
 

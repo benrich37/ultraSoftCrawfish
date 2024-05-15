@@ -3,7 +3,7 @@ sys.path.append("..")
 import numpy as np
 
 from helpers.pdos_helpers import get_pdos_pieces
-from helpers.data_parsers import parse_data
+from helpers.ElecData import parse_data
 from helpers.pcohp_helpers import get_cheap_pcohp_helper
 from helpers.misc_helpers import cs_formatter
 from helpers.ase_helpers import get_atoms

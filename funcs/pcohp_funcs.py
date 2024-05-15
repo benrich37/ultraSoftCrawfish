@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
 
-from helpers.data_parsers import parse_data
+from helpers.ElecData import parse_data
 from helpers.pcohp_helpers import get_just_ipcohp_helper, get_cheap_pcohp_helper, get_pcohp_pieces
 from helpers.misc_helpers import cs_formatter
 import numpy as np

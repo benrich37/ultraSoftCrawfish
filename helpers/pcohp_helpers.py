@@ -5,7 +5,8 @@ from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWa
 import warnings
 
 from helpers.ase_helpers import get_atoms
-from helpers.data_parsers import get_kmap, get_el_orb_u_dict, parse_data
+from helpers.data_parsing_helpers import get_kmap, get_el_orb_u_dict
+from helpers.ElecData import parse_data
 from helpers.misc_helpers import gauss
 
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
