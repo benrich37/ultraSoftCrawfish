@@ -3,7 +3,7 @@ sys.path.append("..")
 import numpy as np
 
 from helpers.pdos_helpers import get_pdos_pieces
-from helpers.ElecData import parse_data
+from helpers.ElecData import parse_data, ElecData
 from helpers.pcohp_helpers import get_cheap_pcohp_helper
 from helpers.misc_helpers import cs_formatter
 from helpers.ase_helpers import get_atoms
@@ -14,7 +14,7 @@ def get_cheap_pdos(idcs, path, data=None, res=0.01, sig=0.00001, orbs=None, Eran
     """
     :param idcs: list[int]
         List of atom indices to plot pDOS of (0-based indices)
-    :param path: str or path
+    :param path: str | path
         Full path for directory containing output files from calculation
     :param data: ElecData
         ElecData class object for calculation

@@ -493,6 +493,10 @@ def get_input_coord_vars_from_outfile(outfname):
 
 
 def get_kmap_from_atoms(atoms):
+    """
+    :param atoms: ase.Atoms
+    :return idx_to_key_map: list[str]
+    """
     el_counter_dict = {}
     idx_to_key_map = []
     els = atoms.get_chemical_symbols()

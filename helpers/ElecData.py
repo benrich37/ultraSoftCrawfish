@@ -25,18 +25,25 @@ class ElecData:
 
     def __init__(self, root=None, bandfile="bandProjections", kPtsfile="kPts",
                  eigfile="eigenvals", fillingsfile="fillings", outfile="out"):
-        self.kmap = None
-        self.nProj = None # Total number of atomic projections
-        self.nBands = None
-        self.nOrbsPerAtom = None
-        self.orbs_idx_dict = None
-        self.mu = None
-        self.occ_sabcj = None
-        self.proj_sabcju = None
-        self.E_sabcj = None
-        self.nStates = None
-        self.atoms = None
-        self.nSpin = None
+        self.nStates = None # Number of states (nSpin x nKpts) (int)
+        self.nBands = None # Number of bands (int)
+        self.nProj = None  # Number of atomic projections (int)
+        self.nSpin = None # Number of spins (int)
+        self.kfolding = None # MK-pack grid folding (list[int])
+        ###
+        self.E_sabcj = None # KS eigenvalues (ndarray)
+        self.proj_sabcju = None # Atomic projections onto KS functions (ndarray)
+        self.occ_sabcj = None # Electron occupation of KS functions (ndarray)
+        self.mu = None # Fermi level / electron reservoir potential (float)
+        ###
+        self.atoms = None # System structure (ase.Atoms)
+        self.nOrbsPerAtom = None # Atomic projections per atom (list[int])
+        self.orbs_idx_dict = None # See 'get_orbs_idx_dict' (dict)
+        self.kmap = None # See 'get_kmap' (list[str])
+        ###
+        self.lti_allowed = None # False if non-MK pack kpoint mesh used (bool)
+        self.complex_bandprojs = None # False if bandProjections were normalized (bool)
+        ###
         self.alloc_file_paths(root, bandfile, kPtsfile, eigfile, fillingsfile,
                               outfile)
         self.alloc_kpt_data()
@@ -169,6 +176,7 @@ class ElecData:
         return self.orbs_idx_dict
 
     def get_kmap(self):
+        # Returns a list of strings used as keys to represent ions in orbs_idx_dict
         if self.kmap is None:
             atoms = self.get_atoms()
             self.kmap = get_kmap_from_atoms(atoms)
