@@ -1,8 +1,8 @@
 import numpy as np
-from data_parsing_helpers import get_bandprojections_from_bandfile, is_complex_bandfile, get_nSpin_helper, get_kfolding_from_outfile, get_kpts_info_handler
-from data_parsing_helpers import get_E_sabcj_helper, get_mu_from_outfile
-from data_parsing_helpers import get_nProj_from_bandfile, get_nBands_from_bandfile, get_nStates_from_bandfile, get_nSpecies_from_bandfile, get_nOrbsPerAtom_from_bandfile
-from ase_helpers import get_atoms_from_out
+from helpers.data_parsing_helpers import get_bandprojections_from_bandfile, is_complex_bandfile, get_nSpin_helper, get_kfolding_from_outfile, get_kpts_info_handler
+from helpers.data_parsing_helpers import get_E_sabcj_helper, get_mu_from_outfile, get_kmap_from_atoms
+from helpers.data_parsing_helpers import get_nProj_from_bandfile, get_nBands_from_bandfile, get_nStates_from_bandfile, get_nSpecies_from_bandfile, get_nOrbsPerAtom_from_bandfile
+from helpers.ase_helpers import get_atoms_from_out
 from os.path import join as opj, exists as ope
 from copy import deepcopy
 
@@ -25,11 +25,11 @@ class ElecData:
 
     def __init__(self, root=None, bandfile="bandProjections", kPtsfile="kPts",
                  eigfile="eigenvals", fillingsfile="fillings", outfile="out"):
-        self.nProj = None
+        self.kmap = None
+        self.nProj = None # Total number of atomic projections
         self.nBands = None
         self.nOrbsPerAtom = None
         self.orbs_idx_dict = None
-        self.is_complex = None
         self.mu = None
         self.occ_sabcj = None
         self.proj_sabcju = None
@@ -59,17 +59,17 @@ class ElecData:
 
     def get_nStates(self):
         if self.nStates is None:
-            self.get_nStates = get_nStates_from_bandfile(self.bandfile)
+            self.nStates = get_nStates_from_bandfile(self.bandfile)
         return self.nStates
 
     def get_nBands(self):
         if self.nBands is None:
-            self.get_nBands = get_nBands_from_bandfile(self.bandfile)
+            self.nBands = get_nBands_from_bandfile(self.bandfile)
         return self.nBands
 
     def get_nProj(self):
         if self.nProj is None:
-            self.get_nProj = get_nProj_from_bandfile(self.bandfile)
+            self.nProj = get_nProj_from_bandfile(self.bandfile)
         return self.nProj
 
 
@@ -89,7 +89,7 @@ class ElecData:
             kfolding = self.get_kfolding()
             nBands = self.get_nBands()
             nProj = self.get_nProj()
-            proj_shape = [nSpin] + kfolding + [nBands, nProj]
+            proj_shape = [nSpin] + list(kfolding) + [nBands, nProj]
             proj_tju = self.get_proj_tju()
             self.proj_sabcju = proj_tju.reshape(proj_shape)
         return self.proj_sabcju
@@ -99,7 +99,7 @@ class ElecData:
             nSpin = self.get_nSpin()
             kfolding = self.get_kfolding()
             nBands = self.get_nBands()
-            occ_shape = [nSpin] + kfolding + [nBands]
+            occ_shape = [nSpin] + list(kfolding) + [nBands]
             if ope(self.fillingsfile):
                 fillings = np.fromfile(self.fillingsfile)
             else:
@@ -142,7 +142,7 @@ class ElecData:
                     print(msg)
                 else:
                     raise ValueError(msg)
-            return get_bandprojections_from_bandfile(self.bandfile, self.is_complex)
+            return get_bandprojections_from_bandfile(self.bandfile, self.complex_bandprojs)
         else:
             proj_tju = deepcopy(self.proj_sabcju)
             nStates = self.get_nStates()
@@ -167,6 +167,12 @@ class ElecData:
             nOrbsPerAtom = self.get_nOrbsPerAtom()
             self.orbs_idx_dict = orbs_idx_dict_helper(els, el_counts, nOrbsPerAtom)
         return self.orbs_idx_dict
+
+    def get_kmap(self):
+        if self.kmap is None:
+            atoms = self.get_atoms()
+            self.kmap = get_kmap_from_atoms(atoms)
+        return self.kmap
 
     #######
 

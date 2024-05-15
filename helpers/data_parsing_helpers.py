@@ -492,7 +492,7 @@ def get_input_coord_vars_from_outfile(outfname):
     return names, posns, R
 
 
-def get_kmap(atoms):
+def get_kmap_from_atoms(atoms):
     el_counter_dict = {}
     idx_to_key_map = []
     els = atoms.get_chemical_symbols()
@@ -548,7 +548,7 @@ def get_el_orb_u_dict(path, atoms, orbs_dict, aidcs):
     :return: Dictionary mapping atom symbol and atomic orbital string to all relevant projection indices
     """
     els = [atoms.get_chemical_symbols()[i] for i in aidcs]
-    kmap = get_kmap(atoms)
+    kmap = get_kmap_from_atoms(atoms)
     labels_dict = get_atom_orb_labels_dict(path)
     el_orbs_dict = {}
     for i, el in enumerate(els):
