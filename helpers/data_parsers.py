@@ -6,24 +6,30 @@ class ElecData:
 
     def __init__(self, root=None, bandfile="bandProjections", kPtsfile="kPts",
                  eigfile="eigenvals", fillingsfile="fillings", outfile="out"):
-        if not root is None:
-            self.bandfile = opj(root, bandfile)
-            self.kPtsfile = opj(root, kPtsfile)
-            self.eigfile = opj(root, eigfile)
-            self.fillingsfile = opj(root, fillingsfile)
-            self.outfile = opj(root, outfile)
-        proj_kju, nStates, nBands, nProj, nSpecies, nOrbsPerAtom = parse_complex_bandfile(bandfile)
-        self.complex_bandprojs = is_complex_bandfile(bandfile)
-        orbs_dict = orbs_idx_dict(outfile, nOrbsPerAtom)
-        kfolding = get_kfolding(outfile)
-        E = np.fromfile(eigfile)
-        nSpin = get_nSpin(outfile)
+        self.root = root
+        if not self.root is None:
+            bandfile = opj(self.root, bandfile)
+            kPtsfile = opj(self.root, kPtsfile)
+            eigfile = opj(self.root, eigfile)
+            fillingsfile = opj(self.root, fillingsfile)
+            outfile = opj(self.root, outfile)
+        self.bandfile = bandfile
+        self.kPtsfile = kPtsfile
+        self.eigfile = eigfile
+        self.fillingsfile = fillingsfile
+        self.outfile = outfile
+        proj_kju, nStates, nBands, nProj, nSpecies, nOrbsPerAtom = parse_complex_bandfile(self.bandfile)
+        self.complex_bandprojs = is_complex_bandfile(self.bandfile)
+        orbs_dict = orbs_idx_dict(self.outfile, nOrbsPerAtom)
+        kfolding = get_kfolding(self.outfile)
+        E = np.fromfile(self.eigfile)
+        nSpin = get_nSpin(self.outfile)
         self.expected_kpts = (nSpin == nStates / np.prod(kfolding))
-        wk_sabc, ks_sabc, kfolding = get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates)
+        wk_sabc, ks_sabc, kfolding = get_kpts_info_handler(nSpin, kfolding, self.kPtsfile, nStates)
         Eshape = [nSpin, kfolding[0], kfolding[1], kfolding[2], nBands]
         E_sabcj = E.reshape(Eshape)
-        if ope(fillingsfile):
-            fillings = np.fromfile(fillingsfile)
+        if ope(self.fillingsfile):
+            fillings = np.fromfile(self.fillingsfile)
             occ_sabcj = fillings.reshape(Eshape)
         else:
             occ_sabcj = np.ones(Eshape) * np.nan
@@ -31,7 +37,7 @@ class ElecData:
         proj_shape.append(nProj)
         proj_flat = proj_kju.flatten()
         proj_sabcju = proj_flat.reshape(proj_shape)
-        mu = get_mu(outfile)
+        mu = get_mu(self.outfile)
         self.proj_sabcju = proj_sabcju
         self.E_sabcj = E_sabcj
         self.occ_sabcj = occ_sabcj
