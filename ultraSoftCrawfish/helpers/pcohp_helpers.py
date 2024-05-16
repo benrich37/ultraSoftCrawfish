@@ -4,10 +4,9 @@ from numba import jit
 from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
 import warnings
 
-from helpers.ase_helpers import get_atoms
-from helpers.data_parsing_helpers import get_kmap_from_atoms, get_el_orb_u_dict
-from helpers.ElecData import parse_data
-from helpers.misc_helpers import gauss, get_orb_bool_func
+from ultraSoftCrawfish.helpers.data_parsing_helpers import get_kmap_from_atoms, get_el_orb_u_dict
+from ultraSoftCrawfish.helpers.ElecData import parse_data
+from ultraSoftCrawfish.helpers.misc_helpers import gauss, get_orb_bool_func
 
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)

@@ -1,9 +1,8 @@
-from os.path import join as opj, exists as ope
-from ase.io import read, write
+from os.path import join as opj
 from ase import Atoms, Atom
 from ase.units import Bohr
 import numpy as np
-from helpers.data_parsing_helpers import get_start_lines, get_input_coord_vars_from_outfile
+from ultraSoftCrawfish.helpers.data_parsing_helpers import get_start_lines, get_input_coord_vars_from_outfile
 
 def get_atoms(path):
     atoms = get_atoms_from_out(opj(path, "out"))

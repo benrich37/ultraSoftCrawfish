@@ -1,8 +1,9 @@
 import numpy as np
-from helpers.data_parsing_helpers import get_bandprojections_from_bandfile, is_complex_bandfile, get_nSpin_helper, get_kfolding_from_outfile, get_kpts_info_handler
-from helpers.data_parsing_helpers import get_E_sabcj_helper, get_mu_from_outfile, get_kmap_from_atoms
-from helpers.data_parsing_helpers import get_nProj_from_bandfile, get_nBands_from_bandfile, get_nStates_from_bandfile, get_nSpecies_from_bandfile, get_nOrbsPerAtom_from_bandfile
-from helpers.ase_helpers import get_atoms_from_out
+from ultraSoftCrawfish.helpers.data_parsing_helpers import get_bandprojections_from_bandfile, is_complex_bandfile, get_nSpin_helper, get_kfolding_from_outfile, get_kpts_info_handler
+from ultraSoftCrawfish.helpers.data_parsing_helpers import get_E_sabcj_helper, get_mu_from_outfile, get_kmap_from_atoms
+from ultraSoftCrawfish.helpers.data_parsing_helpers import get_nProj_from_bandfile, get_nBands_from_bandfile, get_nStates_from_bandfile, \
+    get_nOrbsPerAtom_from_bandfile
+from ultraSoftCrawfish.helpers.ase_helpers import get_atoms_from_out
 from os.path import join as opj, exists as ope
 from copy import deepcopy
 

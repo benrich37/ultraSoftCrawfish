@@ -1,9 +1,9 @@
 import sys
-sys.path.append("..")
+sys.path.append("../..")
 
-from helpers.ElecData import parse_data
-from helpers.pcohp_helpers import get_just_ipcohp_helper, get_cheap_pcohp_helper, get_pcohp_pieces
-from helpers.misc_helpers import cs_formatter
+from ultraSoftCrawfish.helpers.ElecData import parse_data
+from ultraSoftCrawfish.helpers.pcohp_helpers import get_just_ipcohp_helper, get_cheap_pcohp_helper, get_pcohp_pieces
+from ultraSoftCrawfish.helpers.misc_helpers import cs_formatter
 import numpy as np
 from ase.dft.dos import linear_tetrahedron_integration as lti
 
@@ -83,7 +83,7 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
     """
     if data is None:
         data = parse_data(root=path)
-    if not data.expected_kpts:
+    if not data.lti_allowed:
         raise ValueError("Inconsistency encountered in number of expected kpts, spins, and found states. " + \
                          "Due to uncertainty of kfolding, linear tetrahedral integration cannot be used.")
     if not data.complex_bandprojs:

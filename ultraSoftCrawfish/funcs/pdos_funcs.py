@@ -1,12 +1,12 @@
 import sys
-sys.path.append("..")
+sys.path.append("../..")
 import numpy as np
 
-from helpers.pdos_helpers import get_pdos_pieces
-from helpers.ElecData import parse_data, ElecData
-from helpers.pcohp_helpers import get_cheap_pcohp_helper
-from helpers.misc_helpers import cs_formatter
-from helpers.ase_helpers import get_atoms
+from ultraSoftCrawfish.helpers.pdos_helpers import get_pdos_pieces
+from ultraSoftCrawfish.helpers.ElecData import parse_data
+from ultraSoftCrawfish.helpers.pcohp_helpers import get_cheap_pcohp_helper
+from ultraSoftCrawfish.helpers.misc_helpers import cs_formatter
+from ultraSoftCrawfish.helpers.ase_helpers import get_atoms
 from ase.dft.dos import linear_tetrahedron_integration as lti
 
 
@@ -74,7 +74,7 @@ def get_tetr_pdos(idcs, path, data=None, res=0.01, orbs=None, Erange=None, spin_
     """
     if data is None:
         data = parse_data(root=path)
-    if not data.expected_kpts:
+    if not data.lti_allowed:
         raise ValueError("Inconsistency encountered in number of expected kpts, spins, and found states. " + \
                          "Due to uncertainty of kfolding, linear tetrahedral integration cannot be used.")
     Erange, weights_sabcj, E_sabcj = get_pdos_pieces(idcs, path, data, res, orbs, Erange)
