@@ -7,6 +7,8 @@ import numpy as np
 def get_pdos_weights_sabcj(idcs, path, data, orb_bool_func):
     if data is None:
         data = parse_data(root=path)
+    if idcs is None:
+        idcs = list(range(len(data.get_atoms())))
     orbs_idx_dict = data.get_orbs_idx_dict()
     atoms = data.get_atoms()
     kmap = data.get_kmap()
