@@ -90,6 +90,7 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
         raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
                          "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
                          "to your JDFTx in file.")
+
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, res=res,
                                                                             orbs1=orbs1, orbs2=orbs2, Erange=Erange)
     cs = []
@@ -127,5 +128,51 @@ def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
     ipcohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk)
     return ipcohp
+
+
+def get_ipcohp_array(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None, use_occs=True):
+    """ Return
+    :param idcs1: list[int]
+        List of atom indices to belong to first group of the pCOHP pair (0-based indices)
+    :param idcs2: list[int]
+        List of atom indices to belong to second group of the pCOHP pair (0-based indices)
+    :param path: str or path
+        Full path for directory containing output files from calculation
+    :param data: ElecData
+        ElecData class object for calculation
+    :param orbs1/2: list[str]
+        List orbitals to include in pCOHP evaluation (includes all if None)
+            - ie orbs = ["s"] would include only s orbitals,
+                orbs = ["d"] would include only d orbitals,
+                orbs = ["px"] would include only px orbitals
+    :param use_occs: bool
+        If True, pCOHP will be integrated with occupation values
+    :return E: np.ndarray
+        Ordered non-uniform energy array running parallel to ipcohp array
+    :return ipcohp: np.ndarray
+        Array of integrated pCOHP
+    """
+    if data is None:
+        data = parse_data(root=path)
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
+                         "to your JDFTx in file.")
+    Erange, weights_sabcj, E_sabcj, atoms, wk_sabc, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
+    wk_sabcj = np.array([wk_sabc]*data.get_nProj())
+    E_flat = E_sabcj.flatten()
+    idcs = np.argsort(E_flat)
+    E = E_flat[idcs]
+    pW = weights_sabcj.flatten()[idcs]
+    kW = wk_sabcj.flatten()[idcs]
+    occ = occ_sabcj.flatten()[idcs]
+    if use_occs:
+        pcohp = pW*kW*occ
+    else:
+        pcohp = pW*kW
+    ipcohp = np.zeros(len(pcohp)+1)
+    for i in range(len(E)):
+        ipcohp[i+1] = pcohp[i]+ipcohp[i]
+    return E, ipcohp[1:]
 
 
