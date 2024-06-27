@@ -4,9 +4,8 @@ from numba import jit
 from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
 import warnings
 
-from helpers.ase_helpers import get_atoms
-from helpers.data_parsers import get_kmap, get_el_orb_u_dict, parse_data
-from helpers.misc_helpers import gauss
+from ultraSoftCrawfish.helpers.data_parsing_helpers import get_kmap_from_atoms, get_el_orb_u_dict
+from ultraSoftCrawfish.helpers.misc_helpers import gauss, get_orb_bool_func
 
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
@@ -175,7 +174,7 @@ def get_just_ipcohp_helper_jit(occ_sabcj, weights_sabcj, wk_sabc, nSpin, nKa, nK
 def get_orb_idcs(idcs1, idcs2, path, orbs_dict, atoms, orbs1=None, orbs2=None):
     orb_idcs = [[],[]]
     orbs_pulls = [orbs1, orbs2]
-    kmap = get_kmap(atoms)
+    kmap = get_kmap_from_atoms(atoms)
     for i, set in enumerate([idcs1, idcs2]):
         orbs_pull = orbs_pulls[i]
         if not orbs_pull is None:
@@ -194,6 +193,18 @@ def get_orb_idcs(idcs1, idcs2, path, orbs_dict, atoms, orbs1=None, orbs2=None):
             for idx in set:
                 orb_idcs[i] += orbs_dict[kmap[idx]]
     return orb_idcs
+
+
+def get_cheap_dos_helper(Erange, E_sabcj, sig):
+    nSpin = np.shape(E_sabcj)[0]
+    es = []
+    cs = []
+    weights = np.ones(len(E_sabcj[0].flatten()))
+    for s in range(nSpin):
+        es.append(E_sabcj[s].flatten())
+        cs.append(np.zeros(np.shape(Erange), dtype=float))
+        cs[s] = get_cheap_pcohp_jit(Erange, es[s], weights, cs[s], sig)
+    return cs
 
 
 def get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig):
@@ -216,12 +227,12 @@ def get_cheap_pcohp_jit(Erange, eflat, wflat, cflat, sig):
     return cflat
 
 
-def get_pcohp_pieces(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=None, Erange=None):
-    if data is None:
-        data = parse_data(root=path)
-    proj_sabcju, E_sabcj, occ_sabcj, wk, ks, orbs_dict, mu = data
-    atoms = get_atoms(path)
-    kmap = get_kmap(atoms)
+def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None):
+    atoms = data.get_atoms()
+    orbs_idx_dict = data.get_orbs_idx_dict()
+    E_sabcj = data.get_E_sabcj()
+    proj_sabcju = data.get_proj_sabcju()
+    kmap = data.get_kmap()
     if Erange is None:
         Erange = np.arange(np.min(E_sabcj)-(10*res), np.max(E_sabcj)+(10*res), res)
     orb_idcs = [[],[]]
@@ -229,21 +240,16 @@ def get_pcohp_pieces(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=
     for i, set in enumerate([idcs1, idcs2]):
         orbs_pull = orbs_pulls[i]
         if not orbs_pull is None:
-            el_orb_u_dict = get_el_orb_u_dict(path, atoms, orbs_dict, set)
+            el_orb_u_dict = get_el_orb_u_dict(data.root, atoms, orbs_idx_dict, set)
+            orb_bool_func = get_orb_bool_func(orbs_pull)
             for el in el_orb_u_dict:
                 for orb in el_orb_u_dict[el]:
-                    if type(orbs_pull) is list:
-                        for orbi in orbs_pull:
-                            if orbi in orb:
-                                orb_idcs[i] += el_orb_u_dict[el][orb]
-                                break
-                    else:
-                        if orbs_pull in orb:
-                            orb_idcs[i] += el_orb_u_dict[el][orb]
+                    if orb_bool_func(orb):
+                        orb_idcs[i] += el_orb_u_dict[el][orb]
         else:
             for idx in set:
-                orb_idcs[i] += orbs_dict[kmap[idx]]
+                orb_idcs[i] += orbs_idx_dict[kmap[idx]]
     P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
     H_uvsabc = get_H_uvsabc_bare_min(P_uvjsabc, E_sabcj, orb_idcs[0], orb_idcs[1])
     weights_sabcj = get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orb_idcs[0], orb_idcs[1])
-    return Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj
+    return Erange, weights_sabcj, E_sabcj, atoms, data.get_wk_sabc(), data.get_occ_sabcj()

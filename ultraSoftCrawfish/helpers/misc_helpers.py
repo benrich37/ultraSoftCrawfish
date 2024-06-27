@@ -24,3 +24,16 @@ def cs_formatter(cs, spin_pol):
             return cs[0]
         else:
             return cs[0] + cs[1]
+
+
+def get_orb_bool_func(orbs):
+    orb_bool_func = None
+    if not orbs is None:
+        if type(orbs) is list:
+            orb_bool_func = lambda s: True in [o in s for o in orbs]
+        else:
+            orb_bool_func = lambda s: orbs in s
+    return orb_bool_func
+
+
+

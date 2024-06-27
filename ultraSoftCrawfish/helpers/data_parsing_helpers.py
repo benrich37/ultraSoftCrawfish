@@ -2,72 +2,155 @@ import numpy as np
 from os.path import join as opj, exists as ope
 
 
-def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="eigenvals", fillingsfile="fillings",
-               outfile="out"):
+def get_nStates_from_bandfile(bandfile):
+    return get__from_bandfile(bandfile, 0)
+
+def get_nBands_from_bandfile(bandfile):
+    return get__from_bandfile(bandfile, 2)
+
+def get_nProj_from_bandfile(bandfile):
+    return get__from_bandfile(bandfile, 4)
+
+def get_nSpecies_from_bandfile(bandfile):
+    return get__from_bandfile(bandfile, 6)
+
+def get__from_bandfile(bandfile, tok_idx):
+    ret_data = None
+    with open(bandfile, 'r') as f:
+        for iLine, line in enumerate(f):
+            tokens = line.split()
+            if iLine == 0:
+                ret_data = int(tokens[tok_idx])
+                # nStates = int(tokens[0])
+                # nBands = int(tokens[2])
+                # nProj = int(tokens[4])
+                # nSpecies = int(tokens[6])
+                break
+    f.close()
+    return ret_data
+
+def get_nOrbsPerAtom_from_bandfile(bandfile):
+    with open(bandfile, 'r') as f:
+        for iLine, line in enumerate(f):
+            tokens = line.split()
+            if iLine==0:
+                nSpecies = int(tokens[6])
+                nOrbsPerAtom = []
+            elif iLine>=2:
+                if iLine<nSpecies+2:
+                    nAtoms = int(tokens[1])
+                    nOrbsPerAtom.extend( [int(tokens[2]),] * nAtoms)
+                else:
+                    break
+    f.close()
+    return nOrbsPerAtom
+
+def get_bandprojections_from_bandfile(bandfile, is_complex):
     """
-    :param bandfile: Path to BandProjections file (str)
-    :param kPtsfile: Path to kPts file (str)
-    :param eigfile: Path to eigenvalues file (str)
-    :param fillingsfile: Path to fillings files (str)
-    :param outfile: Path to out file (str)
-    :return:
-        - proj_sabcju: a numpy array containing the complex band projection, data (<φ_μ|ψ_j> = T_μj) shaped to
-                       (nSpin, nKa, nKb, nKc, nBand, nProj) where
-                - nSpin (s) = alpha/beta
-                - nKa/b/c (a/b/c) = index along kpt folding for 1st, 2nd, and 3rd reciprocal lattice vector, respectively
-                - nBand (j) = index of band
-                - nProj (u) = index of projected atomic orbital
-        - E_sabcj: Numpy array of kohn-sham eigenvalues (float)
-        - occ_sabcj: Numpy array of electronic fillings for respective state/band (float)
-        - wk_sabc: Numpy array of kpt weights (float)
-        - ks_sabc: Numpy array of each kpt in reciprocal space (float)
-        - orbs_dict: Reference dictionary mapping each atom (using key of format 'el #n' (str), where el is atom id, and n is
-                     number of specific atom as it appears in JDFTx out file using 1-based indexing) to indices (int) of all
-                     atomic orbital projections (in 0-based indexing) belonging to said atom.
-        - mu: Fermi level in Hartree (float)
-    :rtype: tuple
+    :param bandfile: str | path
+        full path to bandProjections file
+    :param is_complex: bool
+    :return proj: ndarray
+        3D array of shape [nStates, nBands, nProj]
     """
-    if not root is None:
-        bandfile = opj(root, bandfile)
-        kPtsfile = opj(root, kPtsfile)
-        eigfile = opj(root, eigfile)
-        fillingsfile = opj(root, fillingsfile)
-        outfile = opj(root, outfile)
-    proj_kju, nStates, nBands, nProj, nSpecies, nOrbsPerAtom = parse_complex_bandfile(bandfile)
-    orbs_dict = orbs_idx_dict(outfile, nOrbsPerAtom)
-    kfolding = get_kfolding(outfile)
-    E = np.fromfile(eigfile)
-    nSpin = get_nSpin(outfile)
-    wk_sabc, ks_sabc, kfolding = get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates)
-    Eshape = [nSpin, kfolding[0], kfolding[1], kfolding[2], nBands]
-    E_sabcj = E.reshape(Eshape)
-    if ope(fillingsfile):
-        fillings = np.fromfile(fillingsfile)
-        occ_sabcj = fillings.reshape(Eshape)
+    if is_complex:
+        proj = parse_bandfile_complex(bandfile)
     else:
-        occ_sabcj = np.ones(Eshape)*np.nan
-    proj_shape = Eshape
-    proj_shape.append(nProj)
-    proj_flat = proj_kju.flatten()
-    proj_sabcju = proj_flat.reshape(proj_shape)
-    mu = get_mu(outfile)
-    return proj_sabcju, E_sabcj, occ_sabcj, wk_sabc, ks_sabc, orbs_dict, mu
+        proj = parse_bandfile_normalized(bandfile)
+    return proj
+
+def parse_bandfile_complex(bandfile):
+    dtype = complex
+    token_parser = complex_token_parser
+    return parse_bandfile_reader(bandfile, dtype, token_parser)
+
+def parse_bandfile_normalized(bandfile):
+    dtype = float
+    token_parser = normalized_token_parser
+    return parse_bandfile_reader(bandfile, dtype, token_parser)
+
+def complex_token_parser(tokens):
+    """
+    :param tokens: Parsed data from bandProjections file
+    :return out: data in the normal numpy complex data format (list(complex))
+    """
+    out = []
+    for i in range(int(len(tokens) / 2)):
+        repart = tokens[2 * i]
+        impart = tokens[(2 * i) + 1]
+        num = complex(float(repart), float(impart))
+        out.append(num)
+    return out
+
+def normalized_token_parser(tokens):
+    """
+    :param tokens: Parsed data from bandProjections file
+    :return out: data in the normal numpy complex data format (list(complex))
+    """
+    out = []
+    for i in range(len(tokens)):
+        num = float(tokens[i])
+        out.append(num)
+    return out
+
+def parse_bandfile_reader(bandfile, dtype, token_parser):
+    with open(bandfile, 'r') as f:
+        for iLine, line in enumerate(f):
+            tokens = line.split()
+            if iLine == 0:
+                nStates = int(tokens[0])
+                nBands = int(tokens[2])
+                nProj = int(tokens[4])
+                nSpecies = int(tokens[6])
+                proj = np.zeros((nStates, nBands, nProj),
+                                dtype=dtype)
+                nOrbsPerAtom = []
+            elif iLine >= 2:
+                if iLine < nSpecies + 2:
+                    nAtoms = int(tokens[1])
+                    nOrbsPerAtom.extend([int(tokens[2]), ] * nAtoms)
+                else:
+                    iState = (iLine - (nSpecies + 2)) // (nBands + 1)
+                    iBand = (iLine - (nSpecies + 2)) - iState * (
+                            nBands + 1) - 1
+                    if iBand >= 0 and iState < nStates:
+                        proj[iState, iBand] = np.array(
+                            token_parser(tokens))
+    f.close()
+    # bandfile_data = {}
+    # bandfile_data["proj"] = proj
+    # bandfile_data["nStates"] = nStates
+    # bandfile_data["nBands"] = nBands
+    # bandfile_data["nProj"] = nProj
+    # bandfile_data["nSpecies"] = nSpecies
+    # bandfile_data["nOrbsPerAtom"] = nOrbsPerAtom
+    return proj
+
+
+#######
 
 
 def get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates):
+    kpts_info = {}
     _nK = int(np.prod(kfolding))
     nK = int(np.prod(kfolding))
     if nSpin != int(nStates / _nK):
-        print("WARNING: Internal inconsistency found (nSpin * nK-pts != nStates).")
-        print("No safety net for this which allows for tetrahedral integration currently implemented.")
-        print("k-folding will be changed to arbitrary length 3 array to satisfy shaping criteria.")
+        print(
+            "WARNING: Internal inconsistency found (nSpin * nK-pts != nStates).")
+        print(
+            "No safety net for this which allows for tetrahedral integration currently implemented.")
+        print(
+            "k-folding will be changed to arbitrary length 3 array to satisfy shaping criteria.")
+        kpts_info["lti"] = False
         nK = int(nStates / nSpin)
+    else:
+        kpts_info["lti"] = True
     if ope(kPtsfile):
         wk, ks, nStates = parse_kptsfile(kPtsfile)
         wk = np.array(wk)
         ks = np.array(ks)
         if (nK != _nK):
-            if len(ks) == nK: # length of kpt data matches interpolated nK value
+            if len(ks) == nK:  # length of kpt data matches interpolated nK value
                 kfolding = get_kfolding_from_kpts(kPtsfile, nK)
             else:
                 kfolding = get_arbitrary_kfolding(nK)
@@ -83,7 +166,10 @@ def get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates):
         wk *= (1 / nK)
     wk_sabc = wk.reshape([nSpin, kfolding[0], kfolding[1], kfolding[2]])
     ks_sabc = ks.reshape([nSpin, kfolding[0], kfolding[1], kfolding[2], 3])
-    return wk_sabc, ks_sabc, kfolding
+    kpts_info["wk_sabc"] = wk_sabc
+    kpts_info["ks_sabc"] = ks_sabc
+    kpts_info["kfolding"] = kfolding
+    return kpts_info
 
 
 def get_kfolding_from_kpts_reader(kPtsfile):
@@ -110,7 +196,7 @@ spintype_nSpin = {
     "vector-spin": 2,
     "z-spin": 2
 }
-def get_nSpin(outfile):
+def get_nSpin_helper(outfile):
     start = get_start_line(outfile)
     key = "spintype"
     with open(outfile, "r") as f:
@@ -121,6 +207,13 @@ def get_nSpin(outfile):
                     val = tokens[1]
                     if val in spintype_nSpin:
                         return spintype_nSpin[val]
+
+
+def get_E_sabcj_helper(eigfile, nSpin, nBands, kfolding):
+    E = np.fromfile(eigfile)
+    Eshape = [nSpin, kfolding[0], kfolding[1], kfolding[2], nBands]
+    E_sabcj = E.reshape(Eshape)
+    return E_sabcj
 
 
 
@@ -150,6 +243,44 @@ def parse_complex_bandprojection(tokens):
         num = complex(float(repart), float(impart))
         out.append(num)
     return out
+
+
+def get_nOrbsPerAtom_from_bandfile(bandfile):
+    with open(bandfile, 'r') as f:
+        for iLine, line in enumerate(f):
+            tokens = line.split()
+            if iLine==0:
+                nSpecies = int(tokens[6])
+                nOrbsPerAtom = []
+            elif iLine>=2:
+                if iLine<nSpecies+2:
+                    nAtoms = int(tokens[1])
+                    nOrbsPerAtom.extend( [int(tokens[2]),] * nAtoms)
+                else:
+                    break
+    f.close()
+    return nOrbsPerAtom
+
+
+def get_calc_dim_shape_from_bandfile(bandfile, req_dim_shape):
+    with open(bandfile, 'r') as f:
+        for iLine, line in enumerate(f):
+            tokens = line.split()
+            if iLine==0:
+                nStates = int(tokens[0])
+                nBands = int(tokens[2])
+                nProj = int(tokens[4])
+                nSpecies = int(tokens[6])
+                nOrbsPerAtom = []
+            elif iLine>=2:
+                if iLine<nSpecies+2:
+                    nAtoms = int(tokens[1])
+                    nOrbsPerAtom.extend( [int(tokens[2]),] * nAtoms)
+                else:
+                    break
+    f.close()
+    return nStates, nBands, nProj, nSpecies, nOrbsPerAtom
+
 
 
 def parse_complex_bandfile(bandfile):
@@ -192,7 +323,7 @@ def parse_complex_bandfile(bandfile):
     f.close()
     return proj, nStates, nBands, nProj, nSpecies, nOrbsPerAtom
 
-def get_mu(outfile):
+def get_mu_from_outfile(outfile):
     # Returns fermi level in Hartree
     mu = 0
     lookkey = "FillingsUpdate:  mu:"
@@ -299,7 +430,7 @@ def get_start_line(outfile):
     start_lines = get_start_lines(outfile, add_end=False)
     return start_lines[-1]
 
-def get_kfolding(outfile):
+def get_kfolding_from_outfile(outfile):
     """ Returns kpt foldings
     :param outfile: Path to out file (str)
     :return: Numpy array of shape (3,) of ints containing kpt folding
@@ -361,7 +492,11 @@ def get_input_coord_vars_from_outfile(outfname):
     return names, posns, R
 
 
-def get_kmap(atoms):
+def get_kmap_from_atoms(atoms):
+    """
+    :param atoms: ase.Atoms
+    :return idx_to_key_map: list[str]
+    """
     el_counter_dict = {}
     idx_to_key_map = []
     els = atoms.get_chemical_symbols()
@@ -417,7 +552,7 @@ def get_el_orb_u_dict(path, atoms, orbs_dict, aidcs):
     :return: Dictionary mapping atom symbol and atomic orbital string to all relevant projection indices
     """
     els = [atoms.get_chemical_symbols()[i] for i in aidcs]
-    kmap = get_kmap(atoms)
+    kmap = get_kmap_from_atoms(atoms)
     labels_dict = get_atom_orb_labels_dict(path)
     el_orbs_dict = {}
     for i, el in enumerate(els):
