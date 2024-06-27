@@ -1,14 +1,14 @@
 import sys
 sys.path.append("../..")
 
-from ultraSoftCrawfish.helpers.ElecData import parse_data
+from ultraSoftCrawfish.helpers.ElecData import get_data_and_path
 from ultraSoftCrawfish.helpers.pcohp_helpers import get_just_ipcohp_helper, get_cheap_pcohp_helper, get_pcohp_pieces
 from ultraSoftCrawfish.helpers.misc_helpers import cs_formatter
 import numpy as np
 from ase.dft.dos import linear_tetrahedron_integration as lti
 
 
-def get_cheap_pcohp(idcs1, idcs2, path, data=None, res=0.01, sig=0.00001, orbs1=None, orbs2=None, Erange=None, spin_pol = False):
+def get_cheap_pcohp(idcs1, idcs2, path=None, data=None, res=0.01, sig=0.00001, orbs1=None, orbs2=None, Erange=None, spin_pol = False):
     """
     :param idcs1: list[int]
         List of atom indices to belong to first group of the pCOHP pair (0-based indices)
@@ -39,20 +39,19 @@ def get_cheap_pcohp(idcs1, idcs2, path, data=None, res=0.01, sig=0.00001, orbs1=
             else:
                 np.ndarray[float] of shape (,N)
     """
-    if data is None:
-        data = parse_data(root=path)
+    data, path = get_data_and_path(data, path)
     if not data.complex_bandprojs:
         raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
                          "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
                          "to your JDFTx in file.")
-    Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, res=res,
+    Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, res=res,
                                                                             orbs1=orbs1, orbs2=orbs2, Erange=Erange)
     cs = get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig)
     pcohp = cs_formatter(cs, spin_pol)
     return Erange, pcohp
 
 
-def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=None, Erange=None, spin_pol=False):
+def get_tetr_pcohp(idcs1, idcs2, path=None, data=None, res=0.01, orbs1=None, orbs2=None, Erange=None, spin_pol=False):
     """
     :param idcs1: list[int]
         List of atom indices to belong to first group of the pCOHP pair (0-based indices)
@@ -81,8 +80,7 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
             else:
                 np.ndarray[float] of shape (,N)
     """
-    if data is None:
-        data = parse_data(root=path)
+    data, path = get_data_and_path(data, path)
     if not data.lti_allowed:
         raise ValueError("Inconsistency encountered in number of expected kpts, spins, and found states. " + \
                          "Due to uncertainty of kfolding, linear tetrahedral integration cannot be used.")
@@ -91,7 +89,7 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
                          "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
                          "to your JDFTx in file.")
 
-    Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, res=res,
+    Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, res=res,
                                                                             orbs1=orbs1, orbs2=orbs2, Erange=Erange)
     cs = []
     nSpin = np.shape(E_sabcj)[0]
@@ -101,7 +99,7 @@ def get_tetr_pcohp(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=No
     return Erange, tetr_pcohp
 
 
-def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
+def get_ipcohp(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None):
     """
     :param idcs1: list[int]
         List of atom indices to belong to first group of the pCOHP pair (0-based indices)
@@ -119,18 +117,17 @@ def get_ipcohp(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None):
     :return ipcohp: float
         Integrated pCOHP up to fermi level
     """
-    if data is None:
-        data = parse_data(root=path)
+    data, path = get_data_and_path(data, path)
     if not data.complex_bandprojs:
         raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
                          "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
                          "to your JDFTx in file.")
-    Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
+    Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, orbs1=orbs1, orbs2=orbs2)
     ipcohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk)
     return ipcohp
 
 
-def get_ipcohp_array(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None, use_occs=True):
+def get_ipcohp_array(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None, use_occs=True):
     """ Return
     :param idcs1: list[int]
         List of atom indices to belong to first group of the pCOHP pair (0-based indices)
@@ -152,13 +149,12 @@ def get_ipcohp_array(idcs1, idcs2, path, data=None, orbs1=None, orbs2=None, use_
     :return ipcohp: np.ndarray
         Array of integrated pCOHP
     """
-    if data is None:
-        data = parse_data(root=path)
+    data, path = get_data_and_path(data, path)
     if not data.complex_bandprojs:
         raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
                          "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
                          "to your JDFTx in file.")
-    Erange, weights_sabcj, E_sabcj, atoms, wk_sabc, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, path, data=data, orbs1=orbs1, orbs2=orbs2)
+    Erange, weights_sabcj, E_sabcj, atoms, wk_sabc, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, orbs1=orbs1, orbs2=orbs2)
     wk_sabcj = np.array([wk_sabc]*data.get_nProj())
     E_flat = E_sabcj.flatten()
     idcs = np.argsort(E_flat)

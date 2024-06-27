@@ -4,9 +4,7 @@ from ultraSoftCrawfish.helpers.misc_helpers import get_orb_bool_func
 import numpy as np
 
 
-def get_pdos_weights_sabcj(idcs, path, data, orb_bool_func):
-    if data is None:
-        data = parse_data(root=path)
+def get_pdos_weights_sabcj(idcs, data, orb_bool_func):
     if idcs is None:
         idcs = list(range(len(data.get_atoms())))
     orbs_idx_dict = data.get_orbs_idx_dict()
@@ -16,7 +14,7 @@ def get_pdos_weights_sabcj(idcs, path, data, orb_bool_func):
     proj_sabcju = data.get_proj_sabcju()
     orbs = []
     if not orb_bool_func is None:
-        el_orb_u_dict = get_el_orb_u_dict(path, atoms, orbs_idx_dict, idcs)
+        el_orb_u_dict = get_el_orb_u_dict(data.root, atoms, orbs_idx_dict, idcs)
         for el in el_orb_u_dict:
             for orb in el_orb_u_dict[el]:
                 if orb_bool_func(orb):
@@ -30,12 +28,12 @@ def get_pdos_weights_sabcj(idcs, path, data, orb_bool_func):
     return weights_sabcj
 
 
-def get_pdos_pieces(idcs, path, data, res, orbs, Erange):
+def get_pdos_pieces(idcs, data, res, orbs, Erange):
     orb_bool_func = get_orb_bool_func(orbs)
-    if data is None:
-        data = parse_data(root=path)
     E_sabcj = data.get_E_sabcj()
-    weights_sabcj = get_pdos_weights_sabcj(idcs, path, data, orb_bool_func)
+    weights_sabcj = get_pdos_weights_sabcj(idcs, data, orb_bool_func)
     if Erange is None:
         Erange = np.arange(np.min(E_sabcj) - (10 * res), np.max(E_sabcj) + (10 * res), res)
     return Erange, weights_sabcj, E_sabcj
+
+

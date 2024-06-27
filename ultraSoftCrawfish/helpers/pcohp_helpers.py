@@ -5,7 +5,6 @@ from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWa
 import warnings
 
 from ultraSoftCrawfish.helpers.data_parsing_helpers import get_kmap_from_atoms, get_el_orb_u_dict
-from ultraSoftCrawfish.helpers.ElecData import parse_data
 from ultraSoftCrawfish.helpers.misc_helpers import gauss, get_orb_bool_func
 
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
@@ -196,6 +195,18 @@ def get_orb_idcs(idcs1, idcs2, path, orbs_dict, atoms, orbs1=None, orbs2=None):
     return orb_idcs
 
 
+def get_cheap_dos_helper(Erange, E_sabcj, sig):
+    nSpin = np.shape(E_sabcj)[0]
+    es = []
+    cs = []
+    weights = np.ones(len(E_sabcj[0].flatten()))
+    for s in range(nSpin):
+        es.append(E_sabcj[s].flatten())
+        cs.append(np.zeros(np.shape(Erange), dtype=float))
+        cs[s] = get_cheap_pcohp_jit(Erange, es[s], weights, cs[s], sig)
+    return cs
+
+
 def get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig):
     nSpin = np.shape(E_sabcj)[0]
     ws = []
@@ -216,9 +227,7 @@ def get_cheap_pcohp_jit(Erange, eflat, wflat, cflat, sig):
     return cflat
 
 
-def get_pcohp_pieces(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=None, Erange=None):
-    if data is None:
-        data = parse_data(root=path)
+def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None):
     atoms = data.get_atoms()
     orbs_idx_dict = data.get_orbs_idx_dict()
     E_sabcj = data.get_E_sabcj()
@@ -231,22 +240,12 @@ def get_pcohp_pieces(idcs1, idcs2, path, data=None, res=0.01, orbs1=None, orbs2=
     for i, set in enumerate([idcs1, idcs2]):
         orbs_pull = orbs_pulls[i]
         if not orbs_pull is None:
-            el_orb_u_dict = get_el_orb_u_dict(path, atoms, orbs_idx_dict, set)
+            el_orb_u_dict = get_el_orb_u_dict(data.root, atoms, orbs_idx_dict, set)
             orb_bool_func = get_orb_bool_func(orbs_pull)
             for el in el_orb_u_dict:
                 for orb in el_orb_u_dict[el]:
                     if orb_bool_func(orb):
                         orb_idcs[i] += el_orb_u_dict[el][orb]
-            # for el in el_orb_u_dict:
-            #     for orb in el_orb_u_dict[el]:
-            #         if type(orbs_pull) is list:
-            #             for orbi in orbs_pull:
-            #                 if orbi in orb:
-            #                     orb_idcs[i] += el_orb_u_dict[el][orb]
-            #                     break
-            #         else:
-            #             if orbs_pull in orb:
-            #                 orb_idcs[i] += el_orb_u_dict[el][orb]
         else:
             for idx in set:
                 orb_idcs[i] += orbs_idx_dict[kmap[idx]]

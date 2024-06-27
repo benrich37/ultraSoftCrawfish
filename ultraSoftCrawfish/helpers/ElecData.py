@@ -157,7 +157,7 @@ class ElecData:
             nBands = self.get_nBands()
             nProj = self.get_nProj()
             proj_shape = [nStates, nBands, nProj]
-            proj_tju.reshape(proj_shape)
+            proj_tju = proj_tju.reshape(proj_shape)
             return proj_tju
 
     def get_nOrbsPerAtom(self):
@@ -219,7 +219,41 @@ class ElecData:
 
     #################
 
+    def norm_projs_t1(self):
+        # Normalize projections such that sum of projections on each band = 1
+        proj_tju = self.get_proj_tju()
+        print(np.shape(proj_tju))
+        proj_tju = norm_projs_for_bands(proj_tju, self.get_nStates(), self.get_nBands(), self.get_nProj())
+        proj_shape = list(np.shape(self.get_E_sabcj()))
+        proj_shape.append(self.get_nProj())
+        self.proj_sabcju = proj_tju.reshape(proj_shape)
+        return None
 
+
+    # def norm_projs_t2(self):
+    #     return None
+    #     # Normalize projections such that sum of projections on each orbital = 1
+
+def norm_projs_for_bands(proj_tju, nStates, nBands, nProj, restrict_band_norm_to_nproj=False):
+    j_sums = np.zeros(nBands)
+    for u in range(nProj):
+        for t in range(nStates):
+            for j in range(nBands):
+                p1 = proj_tju[t, j, u]
+                c = abs(np.conj(proj_tju[t, j, u])*proj_tju[t, j, u])
+                j_sums[j] += c
+    for j in range(nBands):
+        proj_tju[:, j, :] *= (1 / np.sqrt(j_sums[j]))
+    # for u in range(nProj):
+    #     for k in range(nStates):
+    #         for j in range(nBands):
+    #             proj_kju[k, j, u] *= (1 / np.sqrt(j_sums[j]))
+    proj_tju *= np.sqrt(nStates)
+    if restrict_band_norm_to_nproj:
+        for j in range(nBands):
+            if j >= nProj:
+                proj_tju[:,j,:] *= 0
+    return proj_tju
 
 
 
@@ -249,4 +283,11 @@ def orbs_idx_dict_helper(ion_names, ion_counts, nOrbsPerAtom):
     return orbs_dict_out
 
 
-
+def get_data_and_path(data, path):
+    if (data is None) and (path is None):
+        raise ValueError("Must provide at least a path or a data=ElecData (both cannot be none")
+    if data is None:
+        data = ElecData(path)
+    elif path is None:
+        path = data.root
+    return data, path
