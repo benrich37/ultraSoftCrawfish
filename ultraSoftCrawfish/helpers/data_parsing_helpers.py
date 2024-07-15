@@ -136,11 +136,12 @@ def get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates):
     nK = int(np.prod(kfolding))
     if nSpin != int(nStates / _nK):
         print(
-            "WARNING: Internal inconsistency found (nSpin * nK-pts != nStates).")
+            "WARNING: Internal inconsistency found with respect to input parameters (nSpin * nK-pts != nStates).")
         print(
             "No safety net for this which allows for tetrahedral integration currently implemented.")
-        print(
-            "k-folding will be changed to arbitrary length 3 array to satisfy shaping criteria.")
+        if not ope(kPtsfile):
+            print(
+                "k-folding will be changed to arbitrary length 3 array to satisfy shaping criteria.")
         kpts_info["lti"] = False
         nK = int(nStates / nSpin)
     else:

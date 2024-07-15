@@ -25,7 +25,8 @@ def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="
 class ElecData:
 
     def __init__(self, root=None, bandfile="bandProjections", kPtsfile="kPts",
-                 eigfile="eigenvals", fillingsfile="fillings", outfile="out"):
+                 eigfile="eigenvals", fillingsfile="fillings", outfile="out",
+                 gvecfile="Gvectors", wfnfile="wfns"):
         self.nStates = None # Number of states (nSpin x nKpts) (int)
         self.nBands = None # Number of bands (int)
         self.nProj = None  # Number of atomic projections (int)
