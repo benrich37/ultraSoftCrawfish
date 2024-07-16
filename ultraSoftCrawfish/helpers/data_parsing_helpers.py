@@ -147,6 +147,7 @@ def get_kpts_info_handler(nSpin, kfolding, kPtsfile, nStates):
     else:
         kpts_info["lti"] = True
     if ope(kPtsfile):
+        # TODO: Write a function that can un-reduce a reduced kpts mesh
         wk, ks, nStates = parse_kptsfile(kPtsfile)
         wk = np.array(wk)
         ks = np.array(ks)

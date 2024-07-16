@@ -189,7 +189,7 @@ def get_ub_idx(num, ub_list):
 
 def get_ebound_bool(Ebounds, num):
     assert len(Ebounds) % 2 == 0
-    nbounds = len(Ebounds)/2
+    nbounds = int(len(Ebounds)/2)
     nlows = [Ebounds[2*i] for i in range(nbounds)]
     nhighs = [Ebounds[2*i + 1] for i in range(nbounds)]
     if num < np.min(nlows) or num > np.max(nhighs):
