@@ -326,9 +326,9 @@ def get_rs_wfn(calc_dir, weights=None, target_kjs_dict = None):
         if not np.prod(wshape) == nStates*nBands:
             raise ValueError("Bad weights shape")
         else:
-            if len(weights) == 5:
+            if len(wshape) == 5:
                 weights = weights.reshape([nStates, nBands])
-            elif not len(weights) == 2:
+            elif not len(wshape) == 2:
                 raise ValueError("Unexpected weights dimensionality")
     if target_kjs_dict is None:
         rs_wfn = get_rs_wfn_runner(wfnspath, iGarr, S, nBands, weights)
