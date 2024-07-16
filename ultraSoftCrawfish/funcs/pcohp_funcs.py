@@ -234,6 +234,8 @@ def write_pcohp_cub(idcs1, idcs2, path=None, data=None, res=0.01, orbs1=None, or
     cubename += f"-{'_'.join([str(i) for i in idcs2])}"
     if not orbs2 is None:
         cubename += f"({'_'.join(orbs2)})"
+    if not Ebounds is None:
+        cubename += f"-({'_'.join([str(b) for b in Ebounds])})"
     fname = opj(path, f"{cubename}.cub")
     write_cube_writer(data.get_atoms(), fname, rs_wfn, f"pCOHP {cubename}")
 
