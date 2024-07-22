@@ -381,6 +381,7 @@ def get_lb_idx(num, lb_list):
     for i, idx in enumerate(idcs):
         if lb_list[idx] > num:
             return idcs[i-1]
+    return None
 
 
 def get_ub_idx(num, ub_list):
@@ -388,6 +389,7 @@ def get_ub_idx(num, ub_list):
     for i, idx in enumerate(idcs):
         if ub_list[idx] < num:
             return idcs[i-1]
+    return None
 
 
 def get_ebound_bool(Ebounds, num):
@@ -398,7 +400,13 @@ def get_ebound_bool(Ebounds, num):
     if num < np.min(nlows) or num > np.max(nhighs):
         return False
     else:
-        within_ebound = get_lb_idx(num, nlows) == get_ub_idx(num, nhighs)
+        lbidx = get_lb_idx(num, nlows)
+        ubidx = get_ub_idx(num, nhighs)
+        if not None in [lbidx, ubidx]:
+            within_ebound = lbidx == ubidx
+        else:
+            within_ebound = True # If one of them is None, then the number was either below all upper bounds or above all lower bounds
+            # (We know both can't be true simultaneousely due to the return False condition above)
         return within_ebound
 
 

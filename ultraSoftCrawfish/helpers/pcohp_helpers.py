@@ -6,6 +6,8 @@ import warnings
 
 from ultraSoftCrawfish.helpers.data_parsing_helpers import get_kmap_from_atoms, get_el_orb_u_dict
 from ultraSoftCrawfish.helpers.misc_helpers import gauss, get_orb_bool_func
+from ultraSoftCrawfish.helpers.rs_helpers import get_ebound_bool
+from copy import deepcopy
 
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
@@ -148,7 +150,26 @@ def get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orbs_u, orbs_v, wk_sabc=None):
     return get_pCOHP_sabcj_jit(nSpin, nKa, nKb, nKc, nBands, orbs_u, orbs_v, P_uvjsabc, H_uvsabc, wk_sabc, pCOHP_sabcj)
 
 
-def get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk):
+def mod_weights_for_ebounds(weights_sabcj, E_sabcj, ebounds):
+    shape = np.shape(weights_sabcj)
+    _weights_sabcj = deepcopy(weights_sabcj)
+    _weights_sabcj = mod_weights_for_ebounds_jit(_weights_sabcj, E_sabcj, ebounds, shape)
+    return _weights_sabcj
+
+def mod_weights_for_ebounds_jit(_weights_sabcj, E_sabcj, ebounds, shape):
+    for s in range(shape[0]):
+        for a in range(shape[1]):
+            for b in range(shape[2]):
+                for c in range(shape[3]):
+                    for j in range(shape[4]):
+                        if get_ebound_bool(ebounds, E_sabcj[s,a,b,c,j]):
+                            _weights_sabcj[s,a,b,c,j] *= 0
+    return _weights_sabcj
+
+
+
+
+def get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk, ebounds=None, E_sabcj=None):
     shape = np.shape(occ_sabcj)
     nSpin = shape[0]
     nKa = shape[1]
@@ -156,8 +177,11 @@ def get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk):
     nKc = shape[3]
     nBands = shape[4]
     icohp = 0
+    if not ebounds is None:
+        weights_sabcj = mod_weights_for_ebounds(weights_sabcj, E_sabcj, ebounds)
     icohp = get_just_ipcohp_helper_jit(occ_sabcj, weights_sabcj, wk, nSpin, nKa, nKb, nKc, nBands, icohp)
     return icohp
+
 
 
 @jit(nopython=True)

@@ -101,7 +101,7 @@ def get_tetr_pcohp(idcs1, idcs2, path=None, data=None, res=0.01, orbs1=None, orb
     return Erange, tetr_pcohp
 
 
-def get_ipcohp(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None):
+def get_ipcohp(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None, ebounds=None):
     """
     :param idcs1: list[int]
         List of atom indices to belong to first group of the pCOHP pair (0-based indices)
@@ -125,7 +125,7 @@ def get_ipcohp(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None):
                          "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
                          "to your JDFTx in file.")
     Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, orbs1=orbs1, orbs2=orbs2)
-    ipcohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk)
+    ipcohp = get_just_ipcohp_helper(occ_sabcj, weights_sabcj, wk, ebounds=ebounds, E_sabcj=E_sabcj)
     return ipcohp
 
 
