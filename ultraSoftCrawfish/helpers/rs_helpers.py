@@ -376,3 +376,58 @@ def get_rs_wfn(calc_dir, weights=None, target_kjs_dict = None):
 #     atoms = get_atoms_from_out(opj(calc_dir, "out"))
 #     write_cube_writer(atoms, opj(out_dir, "HOMO.cub"), homo, "title card")
 #     write_cube_writer(atoms, opj(out_dir, "LUMO.cub"), lumo, "title card")
+def get_lb_idx(num, lb_list):
+    idcs = np.argsort(lb_list)
+    for i, idx in enumerate(idcs):
+        if lb_list[idx] > num:
+            return idcs[i-1]
+
+
+def get_ub_idx(num, ub_list):
+    idcs = np.argsort(ub_list)[::-1]
+    for i, idx in enumerate(idcs):
+        if ub_list[idx] < num:
+            return idcs[i-1]
+
+
+def get_ebound_bool(Ebounds, num):
+    assert len(Ebounds) % 2 == 0
+    nbounds = int(len(Ebounds)/2)
+    nlows = [Ebounds[2*i] for i in range(nbounds)]
+    nhighs = [Ebounds[2*i + 1] for i in range(nbounds)]
+    if num < np.min(nlows) or num > np.max(nhighs):
+        return False
+    else:
+        within_ebound = get_lb_idx(num, nlows) == get_ub_idx(num, nhighs)
+        return within_ebound
+
+
+def get_target_kjs_dict(E_kj, Ebounds=None, weights_kj=None):
+    nStates = np.shape(E_kj)[0]
+    nBands = np.shape(E_kj)[1]
+    target_kjs_dict = {}
+    inc_all = True
+    if Ebounds is None:
+        if not weights_kj is None:
+            pass_func = lambda w, e: not np.isclose(w, 0)
+        else:
+            return None
+    else:
+        if not weights_kj is None:
+            pass_func = lambda w, e: (not np.isclose(w, 0)) and get_ebound_bool(Ebounds, e)
+        else:
+            pass_func = lambda w, e: get_ebound_bool(Ebounds, e)
+    for k in range(nStates):
+        for j in range(nBands):
+            good = pass_func(weights_kj[k, j], E_kj[k, j])
+            if good:
+                if not str(k) in target_kjs_dict:
+                    target_kjs_dict[str(k)] = []
+                target_kjs_dict[str(k)].append(j)
+            else:
+                inc_all = False
+    if not len(list(target_kjs_dict.keys())):
+        raise ValueError("No non-zero states found within bounds")
+    if inc_all:
+        target_kjs_dict = None
+    return target_kjs_dict

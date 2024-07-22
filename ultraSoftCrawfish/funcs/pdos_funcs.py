@@ -6,7 +6,9 @@ from ultraSoftCrawfish.helpers.pdos_helpers import get_pdos_pieces
 from ultraSoftCrawfish.helpers.ElecData import  get_data_and_path
 from ultraSoftCrawfish.helpers.pcohp_helpers import get_cheap_pcohp_helper, get_cheap_dos_helper
 from ultraSoftCrawfish.helpers.misc_helpers import cs_formatter
+from ultraSoftCrawfish.helpers.rs_helpers import get_target_kjs_dict, get_rs_wfn, write_cube_writer
 from ase.dft.dos import linear_tetrahedron_integration as lti
+from os.path import join as opj
 
 
 def get_cheap_pdos(idcs, path=None, data=None, res=0.01, sig=0.00001, orbs=None, Erange=None, spin_pol=False):
@@ -93,3 +95,27 @@ def get_cheap_dos(path=None, data=None, res=0.01, sig=0.00001, Erange=None, spin
     cs = get_cheap_dos_helper(Erange, E_sabcj, sig=sig)
     dos = cs_formatter(cs, spin_pol)
     return Erange, dos
+
+
+def write_dos_cub(path=None, data=None, Ebounds=None, cubename=None):
+    data, path = get_data_and_path(data, path)
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" + \
+                         "to your JDFTx in file.")
+    nStates = data.get_nStates()
+    nBands = data.get_nBands()
+    wk = data.get_wk_sabc()
+    weights_sabcj = np.array([wk]*nBands)
+    weights_kj = weights_sabcj.reshape([nStates, nBands])
+    E_kj = data.get_E_sabcj().reshape([nStates, nBands])
+    target_kjs_dict = get_target_kjs_dict(E_kj, Ebounds=Ebounds, weights_kj=weights_kj)
+    rs_wfn = get_rs_wfn(path, weights=weights_kj, target_kjs_dict=target_kjs_dict)
+    if cubename is None:
+        cubename = f"DOS"
+        if not Ebounds is None:
+            cubename += f"-({'_'.join([str(b) for b in Ebounds])})"
+    if ".cub" in cubename:
+        cubename = cubename.split(".")[0]
+    fname = opj(path, f"{cubename}.cub")
+    write_cube_writer(data.get_atoms(), fname, rs_wfn, f"pCOHP {cubename}")
