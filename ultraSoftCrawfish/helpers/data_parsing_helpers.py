@@ -1,5 +1,10 @@
 import numpy as np
 from os.path import join as opj, exists as ope
+from numba import jit
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 
 def get_nStates_from_bandfile(bandfile):
@@ -69,17 +74,25 @@ def parse_bandfile_normalized(bandfile):
     token_parser = normalized_token_parser
     return parse_bandfile_reader(bandfile, dtype, token_parser)
 
+@jit(nopython=True)
+def complex_token_parser_jit(tokens, out):
+    reals = tokens[::2]
+    imags = tokens[1::2]
+    out += reals + 1j * imags
+    return out
+
+
 def complex_token_parser(tokens):
     """
     :param tokens: Parsed data from bandProjections file
     :return out: data in the normal numpy complex data format (list(complex))
     """
-    out = []
-    for i in range(int(len(tokens) / 2)):
-        repart = tokens[2 * i]
-        impart = tokens[(2 * i) + 1]
-        num = complex(float(repart), float(impart))
-        out.append(num)
+    out = np.zeros(int(len(tokens) / 2), dtype=complex)
+    tokens = np.array(tokens, dtype=float)
+    # reals = tokens[::2]
+    # imags = tokens[1::2]
+    # out = reals + 1j*imags
+    out = complex_token_parser_jit(tokens, out)
     return out
 
 def normalized_token_parser(tokens):
@@ -87,10 +100,11 @@ def normalized_token_parser(tokens):
     :param tokens: Parsed data from bandProjections file
     :return out: data in the normal numpy complex data format (list(complex))
     """
-    out = []
-    for i in range(len(tokens)):
-        num = float(tokens[i])
-        out.append(num)
+    out = np.array(tokens, dtype=float)
+    # out = []
+    # for i in range(len(tokens)):
+    #     num = float(tokens[i])
+    #     out.append(num)
     return out
 
 def parse_bandfile_reader(bandfile, dtype, token_parser):
