@@ -118,4 +118,33 @@ def write_dos_cub(path=None, data=None, Ebounds=None, cubename=None):
     if ".cub" in cubename:
         cubename = cubename.split(".")[0]
     fname = opj(path, f"{cubename}.cub")
-    write_cube_writer(data.get_atoms(), fname, rs_wfn, f"pCOHP {cubename}")
+    write_cube_writer(data.get_atoms(), fname, rs_wfn, f"DOS {cubename}")
+
+
+def write_pdos_cub(idcs, path=None, data=None, orbs=None, cubename=None, Erange=None, Ebounds=None, res=0.01, ):
+    data, path = get_data_and_path(data, path)
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" + \
+                         "to your JDFTx in file.")
+    nStates = data.get_nStates()
+    nBands = data.get_nBands()
+    wk = data.get_wk_sabc()
+    Erange, weights_sabcj, E_sabcj = get_pdos_pieces(idcs, data, res, orbs, Erange)
+    weights_kj = weights_sabcj.reshape([nStates, nBands])
+    E_kj = data.get_E_sabcj().reshape([nStates, nBands])
+    target_kjs_dict = get_target_kjs_dict(E_kj, Ebounds=Ebounds, weights_kj=weights_kj)
+    rs_wfn = get_rs_wfn(path, weights=weights_kj, target_kjs_dict=target_kjs_dict)
+    if cubename is None:
+        cubename = f"pDOS-({'_'.join([str(idx) for idx in idcs])})"
+        if not orbs is None:
+            if type(orbs) is str:
+                cubename += f"-({orbs})"
+            else:
+                cubename += f"-({'_'.join([str(o) for o in orbs])})"
+        if not Ebounds is None:
+            cubename += f"-({'_'.join([str(b) for b in Ebounds])})"
+    if ".cub" in cubename:
+        cubename = cubename.split(".")[0]
+    fname = opj(path, f"{cubename}.cub")
+    write_cube_writer(data.get_atoms(), fname, rs_wfn, f"pDOS {cubename}")

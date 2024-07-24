@@ -8,6 +8,7 @@ from ultraSoftCrawfish.helpers.data_parsing_helpers import get_kmap_from_atoms, 
 from ultraSoftCrawfish.helpers.misc_helpers import gauss, get_orb_bool_func
 from ultraSoftCrawfish.helpers.rs_helpers import get_ebound_bool
 from copy import deepcopy
+from ultraSoftCrawfish.helpers.rs_helpers import get_ebound_arr
 
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
@@ -150,19 +151,53 @@ def get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orbs_u, orbs_v, wk_sabc=None):
     return get_pCOHP_sabcj_jit(nSpin, nKa, nKb, nKc, nBands, orbs_u, orbs_v, P_uvjsabc, H_uvsabc, wk_sabc, pCOHP_sabcj)
 
 
+@jit(nopython=True)
+def get_pCOOP_sabcj_jit(nSpin, nKa, nKb, nKc, nBands, orbs_u, orbs_v, P_uvjsabc, wk_sabc, pCOOP_sabcj):
+    for s in range(nSpin):
+        for a in range(nKa):
+            for b in range(nKb):
+                for c in range(nKc):
+                    for j in range(nBands):
+                        uv_sum = 0
+                        for u in orbs_u:
+                            for v in orbs_v:
+                                p1 = P_uvjsabc[u, v, j, s, a, b, c]
+                                p3 = wk_sabc[s, a, b, c]
+                                uv_sum += np.real(p1 * p3)
+                        pCOOP_sabcj[s, a, b, c, j] += uv_sum
+    return pCOOP_sabcj
+
+
+def get_pCOOP_sabcj(P_uvjsabc, orbs_u, orbs_v, wk_sabc=None):
+    shape = np.shape(P_uvjsabc)
+    nBands = shape[2]
+    nSpin = shape[3]
+    nKa = shape[4]
+    nKb = shape[5]
+    nKc = shape[6]
+    pCOOP_sabcj = np.zeros([nSpin, nKa, nKb, nKc, nBands])
+    if wk_sabc is None:
+        wk_sabc = np.ones([nSpin, nKa, nKb, nKc])
+    return get_pCOOP_sabcj_jit(nSpin, nKa, nKb, nKc, nBands, orbs_u, orbs_v, P_uvjsabc, wk_sabc, pCOOP_sabcj)
+
+
+
+
+
 def mod_weights_for_ebounds(weights_sabcj, E_sabcj, ebounds):
     shape = np.shape(weights_sabcj)
-    _weights_sabcj = deepcopy(weights_sabcj)
-    _weights_sabcj = mod_weights_for_ebounds_jit(_weights_sabcj, E_sabcj, ebounds, shape)
-    return _weights_sabcj
+    bool_arr = get_ebound_arr(ebounds, E_sabcj)
+    weights_sabcj = mod_weights_for_ebounds_jit(weights_sabcj, shape, bool_arr)
+    return weights_sabcj
 
-def mod_weights_for_ebounds_jit(_weights_sabcj, E_sabcj, ebounds, shape):
+@jit(nopython=True)
+def mod_weights_for_ebounds_jit(_weights_sabcj, shape, bool_arr):
     for s in range(shape[0]):
         for a in range(shape[1]):
             for b in range(shape[2]):
                 for c in range(shape[3]):
                     for j in range(shape[4]):
-                        if get_ebound_bool(ebounds, E_sabcj[s,a,b,c,j]):
+                        if not bool_arr[s,a,b,c,j]:
                             _weights_sabcj[s,a,b,c,j] *= 0
     return _weights_sabcj
 
@@ -276,4 +311,31 @@ def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erang
     P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
     H_uvsabc = get_H_uvsabc_bare_min(P_uvjsabc, E_sabcj, orb_idcs[0], orb_idcs[1])
     weights_sabcj = get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orb_idcs[0], orb_idcs[1])
+    return Erange, weights_sabcj, E_sabcj, atoms, data.get_wk_sabc(), data.get_occ_sabcj()
+
+
+def get_pcoop_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None):
+    atoms = data.get_atoms()
+    orbs_idx_dict = data.get_orbs_idx_dict()
+    E_sabcj = data.get_E_sabcj()
+    proj_sabcju = data.get_proj_sabcju()
+    kmap = data.get_kmap()
+    if Erange is None:
+        Erange = np.arange(np.min(E_sabcj)-(10*res), np.max(E_sabcj)+(10*res), res)
+    orb_idcs = [[],[]]
+    orbs_pulls = [orbs1, orbs2]
+    for i, set in enumerate([idcs1, idcs2]):
+        orbs_pull = orbs_pulls[i]
+        if not orbs_pull is None:
+            el_orb_u_dict = get_el_orb_u_dict(data.root, atoms, orbs_idx_dict, set)
+            orb_bool_func = get_orb_bool_func(orbs_pull)
+            for el in el_orb_u_dict:
+                for orb in el_orb_u_dict[el]:
+                    if orb_bool_func(orb):
+                        orb_idcs[i] += el_orb_u_dict[el][orb]
+        else:
+            for idx in set:
+                orb_idcs[i] += orbs_idx_dict[kmap[idx]]
+    P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
+    weights_sabcj = get_pCOOP_sabcj(P_uvjsabc, orb_idcs[0], orb_idcs[1])
     return Erange, weights_sabcj, E_sabcj, atoms, data.get_wk_sabc(), data.get_occ_sabcj()

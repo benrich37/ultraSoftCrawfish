@@ -376,20 +376,7 @@ def get_rs_wfn(calc_dir, weights=None, target_kjs_dict = None):
 #     atoms = get_atoms_from_out(opj(calc_dir, "out"))
 #     write_cube_writer(atoms, opj(out_dir, "HOMO.cub"), homo, "title card")
 #     write_cube_writer(atoms, opj(out_dir, "LUMO.cub"), lumo, "title card")
-def get_lb_idx(num, lb_list):
-    idcs = np.argsort(lb_list)
-    for i, idx in enumerate(idcs):
-        if lb_list[idx] > num:
-            return idcs[i-1]
-    return None
 
-
-def get_ub_idx(num, ub_list):
-    idcs = np.argsort(ub_list)[::-1]
-    for i, idx in enumerate(idcs):
-        if ub_list[idx] < num:
-            return idcs[i-1]
-    return None
 
 
 def get_ebound_bool(Ebounds, num):
@@ -408,6 +395,58 @@ def get_ebound_bool(Ebounds, num):
             within_ebound = True # If one of them is None, then the number was either below all upper bounds or above all lower bounds
             # (We know both can't be true simultaneousely due to the return False condition above)
         return within_ebound
+
+def get_lb_idx(num, lb_list):
+    idcs = np.argsort(lb_list)
+    for i, idx in enumerate(idcs):
+        if lb_list[idx] > num:
+            return idcs[i-1]
+    return None
+
+
+def get_ub_idx(num, ub_list):
+    idcs = np.argsort(ub_list)[::-1]
+    for i, idx in enumerate(idcs):
+        if ub_list[idx] < num:
+            return idcs[i-1]
+    return None
+
+def get_lb_idx_vec(nums, lb_list):
+    lb_array = np.array(lb_list)
+    sorted_indices = np.argsort(lb_array)
+    sorted_lb = lb_array[sorted_indices]
+    idxs = np.searchsorted(sorted_lb, nums, side='right') - 1
+    return sorted_indices[idxs]
+
+def get_ub_idx_vec(nums, ub_list):
+    ub_array = np.array(ub_list)
+    sorted_indices = np.argsort(ub_array)
+    sorted_ub = ub_array[sorted_indices]
+    idxs = np.searchsorted(sorted_ub, nums, side='right')
+    return sorted_indices[idxs]
+
+def get_ebound_arr(Ebounds, arr):
+    assert len(Ebounds) % 2 == 0
+    nlows = Ebounds[::2]
+    nhighs = Ebounds[1::2]
+
+    vec = arr.flatten()
+    min_low = np.min(nlows)
+    max_high = np.max(nhighs)
+
+    bools = np.zeros(len(vec), dtype=int)
+    valid_mask = (vec >= min_low) & (vec <= max_high)
+
+    valid_nums = vec[valid_mask]
+
+    if valid_nums.size > 0:
+        lb_indices = get_lb_idx_vec(valid_nums, nlows)
+        ub_indices = get_ub_idx_vec(valid_nums, nhighs)
+        within_ebound = (lb_indices == ub_indices)
+        bools[valid_mask] = within_ebound.astype(int)
+
+    bool_arr = bools.reshape(arr.shape)
+    return bool_arr
 
 
 def get_target_kjs_dict(E_kj, Ebounds=None, weights_kj=None):
