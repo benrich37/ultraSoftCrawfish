@@ -26,6 +26,15 @@ def cs_formatter(cs, spin_pol):
             return cs[0] + cs[1]
 
 
+def fidcs(idcs):
+    if type(idcs) is int:
+        return [idcs]
+    elif type(idcs) is list:
+        return idcs
+    else:
+        raise ValueError("atom indices must be int or list of int")
+
+
 def get_orb_bool_func(orbs):
     orb_bool_func = None
     if not orbs is None:

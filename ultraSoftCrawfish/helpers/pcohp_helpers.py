@@ -232,6 +232,8 @@ def get_just_ipcohp_helper_jit(occ_sabcj, weights_sabcj, wk_sabc, nSpin, nKa, nK
 
 
 def get_orb_idcs(idcs1, idcs2, path, orbs_dict, atoms, orbs1=None, orbs2=None):
+    idcs1 = fidcs(idcs1)
+    idcs2 = fidcs(idcs2)
     orb_idcs = [[],[]]
     orbs_pulls = [orbs1, orbs2]
     kmap = get_kmap_from_atoms(atoms)
@@ -287,7 +289,12 @@ def get_cheap_pcohp_jit(Erange, eflat, wflat, cflat, sig):
     return cflat
 
 
-def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None):
+from ultraSoftCrawfish.helpers.misc_helpers import fidcs
+
+
+def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None, directional=False):
+    idcs1 = fidcs(idcs1)
+    idcs2 = fidcs(idcs2)
     atoms = data.get_atoms()
     orbs_idx_dict = data.get_orbs_idx_dict()
     E_sabcj = data.get_E_sabcj()
@@ -309,10 +316,25 @@ def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erang
         else:
             for idx in set:
                 orb_idcs[i] += orbs_idx_dict[kmap[idx]]
-    P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
+    if directional:
+        P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0]+orb_idcs[1], orb_idcs[0]+orb_idcs[1])
+    else:
+        P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
     H_uvsabc = get_H_uvsabc_bare_min(P_uvjsabc, E_sabcj, orb_idcs[0], orb_idcs[1])
+    if directional:
+        P_uvjsabc = make_P_uvjsabc_directional(P_uvjsabc, orb_idcs[0], orb_idcs[1])
     weights_sabcj = get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orb_idcs[0], orb_idcs[1])
     return Erange, weights_sabcj, E_sabcj, atoms, data.get_wk_sabc(), data.get_occ_sabcj()
+
+
+def make_P_uvjsabc_directional(P_uvjsabc, us, vs):
+    for u in us:
+        for v in vs:
+            v1 = np.abs(P_uvjsabc[u,u])
+            v2 = np.abs(P_uvjsabc[v,v])
+            vsum = v1+v2
+            P_uvjsabc[u, v] *= np.divide(v1, vsum, out=np.ones_like(v1), where = vsum != 0)
+    return P_uvjsabc
 
 
 def get_pcoop_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None):

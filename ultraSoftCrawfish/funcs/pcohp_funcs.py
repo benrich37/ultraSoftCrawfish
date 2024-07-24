@@ -3,7 +3,7 @@ sys.path.append("../..")
 
 from ultraSoftCrawfish.helpers.ElecData import get_data_and_path
 from ultraSoftCrawfish.helpers.pcohp_helpers import get_just_ipcohp_helper, get_cheap_pcohp_helper, get_pcohp_pieces, get_pcoop_pieces
-from ultraSoftCrawfish.helpers.misc_helpers import cs_formatter
+from ultraSoftCrawfish.helpers.misc_helpers import cs_formatter, fidcs
 import numpy as np
 from ase.dft.dos import linear_tetrahedron_integration as lti
 from ultraSoftCrawfish.helpers.rs_helpers import get_rs_wfn, write_cube_writer, get_target_kjs_dict
@@ -252,4 +252,19 @@ def get_cheap_pcoop(idcs1, idcs2, path=None, data=None, res=0.01, sig=0.00001, o
     return Erange, pcohp
 
 
-
+def get_directional_pcohp(idcs1, idcs2, path=None, data=None, res=0.01, sig=0.00001, orbs1=None, orbs2=None, Erange=None, spin_pol = False):
+    """
+    Same functionality as get_cheap_pcohp, but pCOHP_uv = P_uv*H_uv will instead be evaluated as pCOHP_uv = P_uu*H_uv with
+    a projection tensor P renormalized such that P_uv = P_uu/(P_uu+P_vv)
+    """
+    data, path = get_data_and_path(data, path)
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
+                         "to your JDFTx in file.")
+    Erange, weights_sabcj, E_sabcj, atoms, wk, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, res=res,
+                                                                            orbs1=orbs1, orbs2=orbs2, Erange=Erange,
+                                                                            directional=True)
+    cs = get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig)
+    pcohp = cs_formatter(cs, spin_pol)
+    return Erange, pcohp

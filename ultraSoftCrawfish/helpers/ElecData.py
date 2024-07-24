@@ -228,7 +228,6 @@ class ElecData:
     def norm_projs_t1(self):
         # Normalize projections such that sum of projections on each band = 1
         proj_tju = self.get_proj_tju()
-        print(np.shape(proj_tju))
         proj_tju = norm_projs_for_bands(proj_tju, self.get_nStates(), self.get_nBands(), self.get_nProj())
         proj_shape = list(np.shape(self.get_E_sabcj()))
         proj_shape.append(self.get_nProj())

@@ -1,12 +1,13 @@
 from ultraSoftCrawfish.helpers.data_parsing_helpers import get_el_orb_u_dict
 from ultraSoftCrawfish.helpers.ElecData import parse_data
-from ultraSoftCrawfish.helpers.misc_helpers import get_orb_bool_func
+from ultraSoftCrawfish.helpers.misc_helpers import get_orb_bool_func, fidcs
 import numpy as np
 
 
 def get_pdos_weights_sabcj(idcs, data, orb_bool_func):
     if idcs is None:
         idcs = list(range(len(data.get_atoms())))
+    idcs = fidcs(idcs)
     orbs_idx_dict = data.get_orbs_idx_dict()
     atoms = data.get_atoms()
     kmap = data.get_kmap()
@@ -29,6 +30,7 @@ def get_pdos_weights_sabcj(idcs, data, orb_bool_func):
 
 
 def get_pdos_pieces(idcs, data, res, orbs, Erange):
+    idcs = fidcs(idcs)
     orb_bool_func = get_orb_bool_func(orbs)
     E_sabcj = data.get_E_sabcj()
     weights_sabcj = get_pdos_weights_sabcj(idcs, data, orb_bool_func)
