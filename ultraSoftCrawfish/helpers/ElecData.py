@@ -6,6 +6,11 @@ from ultraSoftCrawfish.helpers.data_parsing_helpers import get_nProj_from_bandfi
 from ultraSoftCrawfish.helpers.ase_helpers import get_atoms_from_out
 from os.path import join as opj, exists as ope
 from copy import deepcopy
+from numba import jit
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 
 def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="eigenvals", fillingsfile="fillings",
@@ -235,25 +240,30 @@ class ElecData:
     #     return None
     #     # Normalize projections such that sum of projections on each orbital = 1
 
-def norm_projs_for_bands(proj_tju, nStates, nBands, nProj, restrict_band_norm_to_nproj=False):
-    j_sums = np.zeros(nBands)
+
+@jit(nopython=True)
+def norm_projs_for_bands_jit_helper_1(nProj, nStates, nBands, proj_tju, j_sums):
     for u in range(nProj):
         for t in range(nStates):
             for j in range(nBands):
-                p1 = proj_tju[t, j, u]
-                c = abs(np.conj(proj_tju[t, j, u])*proj_tju[t, j, u])
-                j_sums[j] += c
+                j_sums[j] += abs(np.conj(proj_tju[t, j, u])*proj_tju[t, j, u])
     for j in range(nBands):
         proj_tju[:, j, :] *= (1 / np.sqrt(j_sums[j]))
-    # for u in range(nProj):
-    #     for k in range(nStates):
-    #         for j in range(nBands):
-    #             proj_kju[k, j, u] *= (1 / np.sqrt(j_sums[j]))
     proj_tju *= np.sqrt(nStates)
+    return proj_tju
+
+@jit(nopython=True)
+def norm_projs_for_bands_jit_helper_2(nProj, nBands, proj_tju):
+    for _j in range(nBands-nProj):
+        proj_tju[:, _j + 1 + nProj, :] *= 0
+    return proj_tju
+
+
+def norm_projs_for_bands(proj_tju, nStates, nBands, nProj, restrict_band_norm_to_nproj=False):
+    j_sums = np.zeros(nBands)
+    proj_tju = norm_projs_for_bands_jit_helper_1(nProj, nStates, nBands, proj_tju, j_sums)
     if restrict_band_norm_to_nproj:
-        for j in range(nBands):
-            if j >= nProj:
-                proj_tju[:,j,:] *= 0
+        proj_tju = norm_projs_for_bands_jit_helper_2(nProj, nBands, proj_tju)
     return proj_tju
 
 
