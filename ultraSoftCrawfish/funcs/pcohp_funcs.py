@@ -164,7 +164,8 @@ def get_ipcohp_array(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None,
                          "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
                          "to your JDFTx in file.")
     Erange, weights_sabcj, E_sabcj, atoms, wk_sabc, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, orbs1=orbs1, orbs2=orbs2)
-    wk_sabcj = np.array([wk_sabc]*data.get_nProj())
+    wk_sabcj = np.array([wk_sabc] * data.get_nBands())
+    wk_sabcj = wk_sabcj.reshape(np.shape(E_sabcj))
     E_flat = E_sabcj.flatten()
     idcs = np.argsort(E_flat)
     E = E_flat[idcs]
@@ -176,8 +177,7 @@ def get_ipcohp_array(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None,
     else:
         pcohp = pW*kW
     ipcohp = np.zeros(len(pcohp)+1)
-    for i in range(len(E)):
-        ipcohp[i+1] = pcohp[i]+ipcohp[i]
+    ipcohp[1:] = np.cumsum(pcohp)
     return E, ipcohp[1:]
 
 
@@ -268,3 +268,33 @@ def get_directional_pcohp(idcs1, idcs2, path=None, data=None, res=0.01, sig=0.00
     cs = get_cheap_pcohp_helper(Erange, E_sabcj, weights_sabcj, sig)
     pcohp = cs_formatter(cs, spin_pol)
     return Erange, pcohp
+
+
+def get_dipcohp_array(idcs1, idcs2, path=None, data=None, orbs1=None, orbs2=None, use_occs=True):
+    """ Same as get_ipcohp_array but only evaluates the bonding contributions of dpcohp(i1, i2) and antibonding of dpcohp(i2,i1)
+    """
+    data, path = get_data_and_path(data, path)
+    if not data.complex_bandprojs:
+        raise ValueError("Data was not provided bandProjections in complex form - pCOHP analysis not available.\n" + \
+                         "To generate data suitable for pCOHP analysis, pleased add 'band-projection-params yes no' \n" +\
+                         "to your JDFTx in file.")
+    Erange, weights_sabcj_1, E_sabcj, atoms, wk_sabc, occ_sabcj = get_pcohp_pieces(idcs1, idcs2, data, orbs1=orbs1, orbs2=orbs2, directional=True)
+    Erange, weights_sabcj_2, E_sabcj, atoms, wk_sabc, occ_sabcj = get_pcohp_pieces(idcs2, idcs1, data, orbs1=orbs2,
+                                                                                   orbs2=orbs1, directional=True)
+    wk_sabcj = np.array([wk_sabc]*data.get_nBands())
+    wk_sabcj = wk_sabcj.reshape(np.shape(E_sabcj))
+    E_flat = E_sabcj.flatten()
+    idcs = np.argsort(E_flat)
+    E = E_flat[idcs]
+    pW_1 = np.minimum(weights_sabcj_1.flatten()[idcs], np.zeros(len(E)))
+    pW_2 = np.maximum(weights_sabcj_2.flatten()[idcs], np.zeros(len(E)))
+    pW = pW_1 + pW_2
+    kW = wk_sabcj.flatten()[idcs]
+    occ = occ_sabcj.flatten()[idcs]
+    if use_occs:
+        pcohp = pW*kW*occ
+    else:
+        pcohp = pW*kW
+    ipcohp = np.zeros(len(pcohp)+1)
+    ipcohp[1:] = np.cumsum(pcohp)
+    return E, ipcohp[1:]
