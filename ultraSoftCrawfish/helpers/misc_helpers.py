@@ -1,5 +1,23 @@
 import numpy as np
 from numba import jit
+from os.path import join as opj, exists as ope
+from os import mkdir
+
+
+def pcat(root, namelist, force=False):
+    """
+    :param root: Root of path-like
+    :param namelist: List of directory names to join in order
+    :param force: If True, creates concatenated path
+    :return:
+    """
+    path = root
+    for name in namelist:
+        path = opj(path, name)
+        if force:
+            if not ope(path):
+                mkdir(path)
+    return path
 
 
 @jit(nopython=True)
@@ -45,4 +63,24 @@ def get_orb_bool_func(orbs):
     return orb_bool_func
 
 
+import re
+
+def remove_lines_from_file(file_path, pattern):
+    # Compile the regular expression pattern
+    regex = re.compile(pattern)
+
+    # Read all lines from the file
+    with open(file_path, 'r', errors='ignore') as file:
+        lines = file.readlines()
+
+    # Filter out lines that match the pattern
+    lines_to_keep = [line for line in lines if not regex.search(line)]
+
+    # Write the remaining lines back to the file
+    with open(file_path, 'w', errors='ignore') as file:
+        file.writelines(lines_to_keep)
+
+def fix_out_file(outfile):
+    remove_lines_from_file(outfile, "fluid-ex-corr")
+    remove_lines_from_file(outfile, "lda-pz")
 

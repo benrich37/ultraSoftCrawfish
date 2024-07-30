@@ -8,9 +8,10 @@ warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 from ultraSoftCrawfish.helpers.data_parsing_helpers import get_kmap_from_atoms, get_el_orb_u_dict
 from ultraSoftCrawfish.helpers.misc_helpers import gauss, get_orb_bool_func
-from ultraSoftCrawfish.helpers.rs_helpers import get_ebound_bool
 from copy import deepcopy
 from ultraSoftCrawfish.helpers.rs_helpers import get_ebound_arr
+from ultraSoftCrawfish.helpers.misc_helpers import fidcs
+from ultraSoftCrawfish.helpers.pdos_helpers import _get_orb_idcs
 
 
 
@@ -57,6 +58,18 @@ def get_P_uvjsabc_bare_min_jit(proj_sabcju, P_uvjsabc, nProj, nBands, nKa, nKb, 
                                 P_uvjsabc[u, v, j, s, a, b, c] += np.real(np.conj(t1) * t2)
     return P_uvjsabc
 
+# # @jit(nopython=True)
+# def get_P_uvjsabc_bare_min_vec(proj_jsabcu, P_uvjsabc, nProj, nBands, nKa, nKb, nKc, nSpin, orbs_u, orbs_v):
+#     # for u in orbs_u:
+#     #     for v in orbs_v:
+#     #         t1 = proj_jsabcu[:, :, :, :, :, u]
+#     #         t2 = proj_jsabcu[:, :, :, :, :, v]
+#     #         P_uvjsabc[u, v] += np.real(np.conj(t1) * t2)
+#     return P_uvjsabc
+#
+#
+# import time
+
 
 def get_P_uvjsabc_bare_min(proj_sabcju, orbs_u, orbs_v):
     shape = np.shape(proj_sabcju)
@@ -67,6 +80,8 @@ def get_P_uvjsabc_bare_min(proj_sabcju, orbs_u, orbs_v):
     nBands = shape[4]
     nProj = shape[5]
     P_uvjsabc = np.zeros([nProj, nProj, nBands, nSpin, nKa, nKb, nKc], dtype=np.float32)
+    orbs_u = np.asarray(orbs_u)
+    orbs_v = np.asarray(orbs_v)
     P_uvjsabc = get_P_uvjsabc_bare_min_jit(proj_sabcju, P_uvjsabc, nProj, nBands, nKa, nKb, nKc, nSpin, orbs_u, orbs_v)
     return np.real(P_uvjsabc)
 
@@ -231,6 +246,9 @@ def get_just_ipcohp_helper_jit(occ_sabcj, weights_sabcj, wk_sabc, nSpin, nKa, nK
     return icohp
 
 
+
+
+
 def get_orb_idcs(idcs1, idcs2, path, orbs_dict, atoms, orbs1=None, orbs2=None):
     idcs1 = fidcs(idcs1)
     idcs2 = fidcs(idcs2)
@@ -289,76 +307,159 @@ def get_cheap_pcohp_jit(Erange, eflat, wflat, cflat, sig):
     return cflat
 
 
-from ultraSoftCrawfish.helpers.misc_helpers import fidcs
 
 
-def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None, directional=False):
+
+def get_pcohp_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None, directional=False,
+                      a=False, d=False):
+    if True in [a, d]:
+        if not directional:
+            raise ValueError("pCOHP must be directional to allow accepting/donation interactions")
     idcs1 = fidcs(idcs1)
     idcs2 = fidcs(idcs2)
     atoms = data.get_atoms()
-    orbs_idx_dict = data.get_orbs_idx_dict()
     E_sabcj = data.get_E_sabcj()
     proj_sabcju = data.get_proj_sabcju()
-    kmap = data.get_kmap()
     if Erange is None:
         Erange = np.arange(np.min(E_sabcj)-(10*res), np.max(E_sabcj)+(10*res), res)
-    orb_idcs = [[],[]]
-    orbs_pulls = [orbs1, orbs2]
-    for i, set in enumerate([idcs1, idcs2]):
-        orbs_pull = orbs_pulls[i]
-        if not orbs_pull is None:
-            el_orb_u_dict = get_el_orb_u_dict(data.root, atoms, orbs_idx_dict, set)
-            orb_bool_func = get_orb_bool_func(orbs_pull)
-            for el in el_orb_u_dict:
-                for orb in el_orb_u_dict[el]:
-                    if orb_bool_func(orb):
-                        orb_idcs[i] += el_orb_u_dict[el][orb]
-        else:
-            for idx in set:
-                orb_idcs[i] += orbs_idx_dict[kmap[idx]]
+    orb_idcs = _get_orb_idcs(idcs1, idcs2, orbs1, orbs2, data)
     if directional:
         P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0]+orb_idcs[1], orb_idcs[0]+orb_idcs[1])
     else:
         P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
     H_uvsabc = get_H_uvsabc_bare_min(P_uvjsabc, E_sabcj, orb_idcs[0], orb_idcs[1])
     if directional:
-        P_uvjsabc = make_P_uvjsabc_directional(P_uvjsabc, orb_idcs[0], orb_idcs[1])
+        P_uvjsabc = assign_directionality_to_P_uvjsabc(P_uvjsabc, a, d, orb_idcs[0], orb_idcs[1])
     weights_sabcj = get_pCOHP_sabcj(P_uvjsabc, H_uvsabc, orb_idcs[0], orb_idcs[1])
     return Erange, weights_sabcj, E_sabcj, atoms, data.get_wk_sabc(), data.get_occ_sabcj()
 
+import time
 
-def make_P_uvjsabc_directional(P_uvjsabc, us, vs):
+
+def make_P_uvjsabc_directional(P_uvjsabc, us, vs, f=False):
+    _P_uvjsabc = deepcopy(P_uvjsabc)
     for u in us:
         for v in vs:
             v1 = np.abs(P_uvjsabc[u,u])
             v2 = np.abs(P_uvjsabc[v,v])
+            # v1 = P_uvjsabc[u,u]
+            # v2 = P_uvjsabc[v,v]
             vsum = v1+v2
-            P_uvjsabc[u, v] *= np.divide(v1, vsum, out=np.ones_like(v1), where = vsum != 0)
-    return P_uvjsabc
+            if not f:
+                fac = np.divide(v1, vsum, out=np.ones_like(v1), where = vsum != 0)
+            else:
+                fac = np.divide(v2, vsum, out=np.ones_like(v1), where=vsum != 0)
+            _P_uvjsabc[u, v] *= fac
+    return _P_uvjsabc
+
+# @jit(nopython=True)
+# def make_P_uvjsabc_directional_jit(P_uvjsabc, us, vs, jsabc):
+#     for u in us:
+#         for v in vs:
+#             v1 = np.abs(P_uvjsabc[u,u])
+#             v2 = np.abs(P_uvjsabc[v,v])
+#             vsum = v1+v2
+#             for j in range(jsabc[0]):
+#                 for s in range(jsabc[1]):
+#                     for a in range(jsabc[2]):
+#                         for b in range(jsabc[3]):
+#                             for c in range(jsabc[4]):
+#                                 if not np.isclose(vsum[j,s,a,b,c], 0):
+#                                     P_uvjsabc[u, v, j, s, a, b,c ] *= v1[j,s,a,b,c]/vsum[j,s,a,b,c]
+#             #P_uvjsabc[u, v] *= np.divide(v2, vsum, out=np.ones_like(v1), where = vsum != 0)
+#     return P_uvjsabc
+#
+#
+# @jit(nopython=True)
+# def make_P_uvjsabc_directional_jit_f(P_uvjsabc, us, vs, jsabc):
+#     for u in us:
+#         for v in vs:
+#             v1 = np.abs(P_uvjsabc[u,u])
+#             v2 = np.abs(P_uvjsabc[v,v])
+#             vsum = v1+v2
+#             for j in range(jsabc[0]):
+#                 for s in range(jsabc[1]):
+#                     for a in range(jsabc[2]):
+#                         for b in range(jsabc[3]):
+#                             for c in range(jsabc[4]):
+#                                 if not np.isclose(vsum[j,s,a,b,c], 0):
+#                                     P_uvjsabc[u, v, j, s, a, b,c ] *= v2[j,s,a,b,c]/vsum[j,s,a,b,c]
+#             #P_uvjsabc[u, v] *= np.divide(v2, vsum, out=np.ones_like(v1), where = vsum != 0)
+#     return P_uvjsabc
 
 
-def get_pcoop_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None):
+def get_pcoop_pieces(idcs1, idcs2, data, res=0.01, orbs1=None, orbs2=None, Erange=None, directional=False, a=False, d=False):
+    idcs1 = fidcs(idcs1)
+    idcs2 = fidcs(idcs2)
     atoms = data.get_atoms()
-    orbs_idx_dict = data.get_orbs_idx_dict()
     E_sabcj = data.get_E_sabcj()
     proj_sabcju = data.get_proj_sabcju()
-    kmap = data.get_kmap()
     if Erange is None:
         Erange = np.arange(np.min(E_sabcj)-(10*res), np.max(E_sabcj)+(10*res), res)
-    orb_idcs = [[],[]]
-    orbs_pulls = [orbs1, orbs2]
-    for i, set in enumerate([idcs1, idcs2]):
-        orbs_pull = orbs_pulls[i]
-        if not orbs_pull is None:
-            el_orb_u_dict = get_el_orb_u_dict(data.root, atoms, orbs_idx_dict, set)
-            orb_bool_func = get_orb_bool_func(orbs_pull)
-            for el in el_orb_u_dict:
-                for orb in el_orb_u_dict[el]:
-                    if orb_bool_func(orb):
-                        orb_idcs[i] += el_orb_u_dict[el][orb]
-        else:
-            for idx in set:
-                orb_idcs[i] += orbs_idx_dict[kmap[idx]]
-    P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
+    orb_idcs = _get_orb_idcs(idcs1, idcs2, orbs1, orbs2, data)
+    if directional:
+        P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0]+orb_idcs[1], orb_idcs[0]+orb_idcs[1])
+        P_uvjsabc = assign_directionality_to_P_uvjsabc(P_uvjsabc, a, d, orb_idcs[0], orb_idcs[1])
+    else:
+        P_uvjsabc = get_P_uvjsabc_bare_min(proj_sabcju, orb_idcs[0], orb_idcs[1])
     weights_sabcj = get_pCOOP_sabcj(P_uvjsabc, orb_idcs[0], orb_idcs[1])
     return Erange, weights_sabcj, E_sabcj, atoms, data.get_wk_sabc(), data.get_occ_sabcj()
+
+def assign_directionality_to_P_uvjsabc(P_uvjsabc, a, d, o0s, o1s):
+    if not True in [a, d]:
+        P_uvjsabc = make_P_uvjsabc_directional(P_uvjsabc, o0s, o1s)
+    else:
+        # s = time.time()
+        # aP_uvjsabc = make_P_uvjsabc_directional(P_uvjsabc, o0s, o1s)
+        # dP_uvjsabc = make_P_uvjsabc_directional(P_uvjsabc, o0s, o1s, f=True)
+        # P_uvjsabc = np.zeros_like(P_uvjsabc)
+        # if a:
+        #     padd = np.maximum(aP_uvjsabc, 0) + np.minimum(dP_uvjsabc, 0)
+        #     P_uvjsabc = add_padd(P_uvjsabc, padd, o0s, o1s)
+        # if d:
+        #     padd = np.maximum(dP_uvjsabc, 0) + np.minimum(aP_uvjsabc, 0)
+        #     P_uvjsabc = add_padd(P_uvjsabc, padd, o0s, o1s)
+        # print(f"old: {time.time()-s}")
+        # s = time.time()
+        if a:
+            P_uvjsabc = make_aP_uvjsabc(P_uvjsabc, o0s, o1s)
+        if d:
+            P_uvjsabc = make_dP_uvjsabc(P_uvjsabc, o0s, o1s)
+    return P_uvjsabc
+
+def make_aP_uvjsabc(P_uvjsabc, o0s, o1s):
+    aP_uvjsabc = np.zeros_like(P_uvjsabc)
+    for u in o0s:
+        for v in o1s:
+            v1 = np.abs(P_uvjsabc[u, u])
+            v2 = np.abs(P_uvjsabc[v, v])
+            vsum = v1 + v2
+            aP_uvjsabc[u, v] += np.maximum(P_uvjsabc[u, v] * np.divide(v1, vsum, out=np.ones_like(v1), where=vsum != 0), 0) +\
+                                np.minimum(P_uvjsabc[u, v] * np.divide(v2, vsum, out=np.ones_like(v1), where=vsum != 0), 0)
+            # aP_uvjsabc[u,v] += P_uvjsabc[u, v]*(np.maximum(np.divide(v1, vsum, out=np.ones_like(v1), where = vsum != 0), 0) +
+            #                                     np.minimum(np.divide(v2, vsum, out=np.ones_like(v1), where=vsum != 0),
+            #                                                0))
+    return aP_uvjsabc
+
+
+def make_dP_uvjsabc(P_uvjsabc, o0s, o1s):
+    dP_uvjsabc = np.zeros_like(P_uvjsabc)
+    for u in o0s:
+        for v in o1s:
+            v1 = np.abs(P_uvjsabc[u, u])
+            v2 = np.abs(P_uvjsabc[v, v])
+            vsum = v1 + v2
+            dP_uvjsabc[u, v] += np.maximum(P_uvjsabc[u, v] * np.divide(v2, vsum, out=np.ones_like(v1), where=vsum != 0), 0) +\
+                                np.minimum(P_uvjsabc[u, v] * np.divide(v1, vsum, out=np.ones_like(v1), where=vsum != 0), 0)
+            # aP_uvjsabc[u,v] += P_uvjsabc[u, v]*(np.maximum(np.divide(v1, vsum, out=np.ones_like(v1), where = vsum != 0), 0) +
+            #                                     np.minimum(np.divide(v2, vsum, out=np.ones_like(v1), where=vsum != 0),
+            #                                                0))
+    return dP_uvjsabc
+    
+
+@jit(nopython=True)
+def add_padd(P, padd, orb1, orb2):
+    for u in orb1:
+        for v in orb2:
+            P[u, v] += padd[u, v]
+    return P

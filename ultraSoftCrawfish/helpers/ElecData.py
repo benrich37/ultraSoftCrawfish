@@ -3,7 +3,7 @@ from ultraSoftCrawfish.helpers.data_parsing_helpers import get_bandprojections_f
 from ultraSoftCrawfish.helpers.data_parsing_helpers import get_E_sabcj_helper, get_mu_from_outfile, get_kmap_from_atoms
 from ultraSoftCrawfish.helpers.data_parsing_helpers import get_nProj_from_bandfile, get_nBands_from_bandfile, get_nStates_from_bandfile, \
     get_nOrbsPerAtom_from_bandfile
-from ultraSoftCrawfish.helpers.ase_helpers import get_atoms_from_out
+from ultraSoftCrawfish.helpers.ase_helpers import get_atoms_from_calc_dir
 from os.path import join as opj, exists as ope
 from copy import deepcopy
 from numba import jit
@@ -59,7 +59,7 @@ class ElecData:
 
     def get_atoms(self):
         if self.atoms is None:
-            self.atoms = get_atoms_from_out(self.outfile)
+            self.atoms = get_atoms_from_calc_dir(self.root)
         return self.atoms
 
     def get_ion_names(self):
