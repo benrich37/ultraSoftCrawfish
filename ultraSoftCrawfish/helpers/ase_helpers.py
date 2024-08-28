@@ -64,6 +64,7 @@ def get_atoms_from_outfile_data(names, posns, R, charges=None, E=0, momenta=None
     posns *= Bohr
     R = R.T*Bohr
     atoms.cell = R
+    atoms.pbc = True
     if charges is None:
         charges = np.zeros(len(names))
     if momenta is None:
