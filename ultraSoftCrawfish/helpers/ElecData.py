@@ -11,6 +11,7 @@ from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWa
 import warnings
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+from time import time
 
 
 def parse_data(root=None, bandfile="bandProjections", kPtsfile="kPts", eigfile="eigenvals", fillingsfile="fillings",
@@ -55,6 +56,8 @@ class ElecData:
                               outfile)
         self.alloc_kpt_data()
         self.alloc_elec_data()
+        ###
+        self.norm = None
 
 
     def get_atoms(self):
@@ -95,6 +98,16 @@ class ElecData:
             kfolding = self.get_kfolding()
             self.E_sabcj = get_E_sabcj_helper(eigfile, nSpin, nBands, kfolding)
         return self.E_sabcj
+
+    def get_proj_sabcju_from_file(self):
+        nSpin = self.get_nSpin()
+        kfolding = self.get_kfolding()
+        nBands = self.get_nBands()
+        nProj = self.get_nProj()
+        proj_shape = [nSpin] + list(kfolding) + [nBands, nProj]
+        proj_tju = self.get_proj_tju_from_file(allow_normalized=False)
+        self.proj_sabcju = proj_tju.reshape(proj_shape)
+        return self.proj_sabcju
 
 
     def get_proj_sabcju(self):
@@ -147,16 +160,26 @@ class ElecData:
             print("WARNING - this k-point folding array was assigned arbitrary and doesn't reflect the k-point mesh used in the DFT calculation")
         return self.kfolding
 
+    def get_proj_tju_from_file(self, allow_normalized=False):
+        self.complex_bandprojs = is_complex_bandfile(self.bandfile)
+        if not self.complex_bandprojs:
+            msg = "Bandprojections file contains |proj|^2, not proj - invalid data for COHP analysis \n (next time add 'band-projection-params yes no' to inputs file)"
+            if allow_normalized:
+                print(msg)
+            else:
+                raise ValueError(msg)
+        return get_bandprojections_from_bandfile(self.bandfile, self.complex_bandprojs)
+
     def get_proj_tju(self, allow_normalized=False):
         if self.proj_sabcju is None:
-            self.complex_bandprojs = is_complex_bandfile(self.bandfile)
-            if not self.complex_bandprojs:
-                msg = "Bandprojections file contains |proj|^2, not proj - invalid data for COHP analysis \n (next time add 'band-projection-params yes no' to inputs file)"
-                if allow_normalized:
-                    print(msg)
-                else:
-                    raise ValueError(msg)
-            return get_bandprojections_from_bandfile(self.bandfile, self.complex_bandprojs)
+            # self.complex_bandprojs = is_complex_bandfile(self.bandfile)
+            # if not self.complex_bandprojs:
+            #     msg = "Bandprojections file contains |proj|^2, not proj - invalid data for COHP analysis \n (next time add 'band-projection-params yes no' to inputs file)"
+            #     if allow_normalized:
+            #         print(msg)
+            #     else:
+            #         raise ValueError(msg)
+            return self.get_proj_tju_from_file(allow_normalized=allow_normalized)
         else:
             proj_tju = deepcopy(self.proj_sabcju)
             nStates = self.get_nStates()
@@ -225,6 +248,10 @@ class ElecData:
 
     #################
 
+    def unnorm_projs(self):
+        _ = self.get_proj_sabcju_from_file()
+        self.norm = None
+
     def norm_projs_t1(self):
         # Normalize projections such that sum of projections on each band = 1
         proj_tju = self.get_proj_tju()
@@ -232,13 +259,62 @@ class ElecData:
         proj_shape = list(np.shape(self.get_E_sabcj()))
         proj_shape.append(self.get_nProj())
         self.proj_sabcju = proj_tju.reshape(proj_shape)
+        self.norm = 1
         return None
 
+    def norm_projs_t2(self):
+        # Normalize projections such that sum of projections on each orbital = 1
+        # self.E_sabcj = self.get_E_sabcj()[:,:,:,:, :self.get_nProj()]
+        # self.proj_sabcju = self.get_proj_sabcju()[:,:,:,:,:self.get_nProj(), :]
+        # self.occ_sabcj = self.get_occ_sabcj()[:,:,:,:, :self.get_nProj()]
+        # self.nBands = self.get_nProj()
+        proj_tju = self.get_proj_tju()
+        proj_tju = norm_projs_for_orbs(proj_tju, self.get_nStates(), self.get_nBands(), self.get_nProj())
+        proj_shape = list(np.shape(self.get_E_sabcj()))
+        proj_shape.append(self.get_nProj())
+        self.proj_sabcju = proj_tju.reshape(proj_shape)
+        self.norm = 2
+        return None
 
-    # def norm_projs_t2(self):
+    # def norm_projs_t3(self, its=None):
+    #     # Optimize projections to normalization criteria of t1 and t2
+    #     self.norm_projs_t1()
+    #     v1 = abs(get_t1_loss(self.get_proj_tju(), self.get_nStates()))
+    #     self.norm_projs_t2()
+    #     v2 = abs(get_t2_loss(self.get_proj_tju(), self.get_nStates()))
+    #     _v3 = v1 + v2
+    #     if its is None:
+    #         s = time()
+    #         self.norm_projs_t1()
+    #         self.norm_projs_t2()
+    #         v3 = get_t3_loss(self.get_proj_tju(), self.get_nStates())
+    #         if v3 < _v3:
+    #             return None
+    #         else:
+    #             spit = time() - s
+    #             its = int(10/spit) # Auto-set iterations to run for maximum 10 seconds
+    #     for i in range(its):
+    #         v3 = get_t3_loss(self.get_proj_tju(), self.get_nStates())
+    #         if v3 < _v3:
+    #             print(f"Optimized in {i}/{its} iterations")
+    #             break
+    #         self.norm_projs_t1()
+    #         self.norm_projs_t2()
     #     return None
-    #     # Normalize projections such that sum of projections on each orbital = 1
 
+def get_t1_loss(proj_tju, nStates):
+    v = np.sum(np.sum(np.sum(np.abs(proj_tju)**2, axis=-1), axis=0)-nStates)
+    return v
+
+def get_t2_loss(proj_tju, nStates):
+    v = np.sum(np.sum(np.sum(np.abs(proj_tju)**2, axis=0), axis=1)-nStates)
+    return v
+
+
+def get_t3_loss(proj_tju, nStates):
+    v2 = np.sum(np.sum(np.sum(np.abs(proj_tju)**2, axis=0), axis=1)-nStates)
+    v1 = np.sum(np.sum(np.sum(np.abs(proj_tju)**2, axis=-1), axis=0)-nStates)
+    return abs(v1) + abs(v2)
 
 @jit(nopython=True)
 def norm_projs_for_bands_jit_helper_1(nProj, nStates, nBands, proj_tju, j_sums):
@@ -263,6 +339,24 @@ def norm_projs_for_bands(proj_tju, nStates, nBands, nProj, restrict_band_norm_to
     proj_tju = norm_projs_for_bands_jit_helper_1(nProj, nStates, nBands, proj_tju, j_sums)
     if restrict_band_norm_to_nproj:
         proj_tju = norm_projs_for_bands_jit_helper_2(nProj, nBands, proj_tju)
+    return proj_tju
+
+
+@jit(nopython=True)
+def norm_projs_for_orbs_jit_helper(nProj, nStates, nBands, proj_tju, u_sums):
+    for u in range(nProj):
+        for t in range(nStates):
+            for j in range(nBands):
+                u_sums[u] += abs(np.conj(proj_tju[t,j,u])*proj_tju[t,j,u])
+    for u in range(nProj):
+        proj_tju[:,:,u] *= 1/np.sqrt(u_sums[u])
+    proj_tju *= np.sqrt(2)
+    # proj_tju *= np.sqrt(nStates*nBands/nProj)
+    return proj_tju
+
+def norm_projs_for_orbs(proj_tju, nStates, nBands, nProj):
+    u_sums = np.zeros(nProj)
+    proj_tju = norm_projs_for_orbs_jit_helper(nProj, nStates, nBands, proj_tju, u_sums)
     return proj_tju
 
 

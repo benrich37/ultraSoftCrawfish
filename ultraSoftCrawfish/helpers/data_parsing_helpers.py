@@ -523,6 +523,13 @@ def get_kmap_from_atoms(atoms):
         idx_to_key_map.append(f"{el} #{el_counter_dict[el]}")
     return idx_to_key_map
 
+orb_ref_list = [
+        ["s"],
+        ["px", "py", "pz"],
+        ["dxy", "dxz", "dyz", "dx2y2", "dz2"],
+        ["fx3-3xy2", "fyx2-yz2", "fxz2", "fz3", "fyz2", "fxyz", "f3yx2-y3"]
+    ]
+
 def get_atom_orb_labels_dict(root):
     """
     :param root: Path of directory containing JDFTx calculation data
@@ -532,12 +539,7 @@ def get_atom_orb_labels_dict(root):
     """
     fname = opj(root, "bandProjections")
     labels_dict = {}
-    ref_lists = [
-        ["s"],
-        ["px", "py", "pz"],
-        ["dxy", "dxz", "dyz", "dx2y2", "dz2"],
-        ["fx3-3xy2", "fyx2-yz2", "fxz2", "fz3", "fyz2", "fxyz", "f3yx2-y3"]
-    ]
+
     with open(fname, "r") as f:
         for i, line in enumerate(f):
             if i > 1:
@@ -549,7 +551,7 @@ def get_atom_orb_labels_dict(root):
                     labels_dict[sym] = []
                     lmax = int(lsplit[3])
                     for j in range(lmax+1):
-                        refs = ref_lists[j]
+                        refs = orb_ref_list[j]
                         nShells = int(lsplit[4+j])
                         for k in range(nShells):
                             if nShells > 1:
